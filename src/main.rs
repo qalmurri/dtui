@@ -1,4 +1,14 @@
-use std::io;
+mod app;
+mod config;
+mod event;
+mod identity;
+mod keybindings;
+mod ui;
+
+use std::{
+    error::Error,
+    io::{self, Stdout},
+};
 
 use crossterm::{
     execute,
@@ -7,39 +17,56 @@ use crossterm::{
 
 use ratatui::{Terminal, backend::CrosstermBackend};
 
-mod app;
-mod event;
-mod screen;
-mod ui;
+pub type Tui = Terminal<CrosstermBackend<Stdout>>;
 
-use app::App;
+struct TerminalGuard;
 
-fn main() -> io::Result<()> {
-    enable_raw_mode()?;
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+    }
+}
 
-    let mut stdout = io::stdout();
+fn main() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = std::env::args().collect();
 
-    execute!(stdout, EnterAlternateScreen)?;
+    // Membuat identitas persisten:
+    // cargo run -p client -- --create-identity Qalmurri
+    if args.len() == 3 && args[1] == "--create-identity" {
+        let identity = identity::Identity::create_persistent(&args[2])?;
 
-    let backend = CrosstermBackend::new(stdout);
+        println!("Identitas Srawung berhasil dibuat.");
+        println!("Alias : {}", identity.alias());
+        println!("Mode  : {}", identity.mode_label());
+        println!("ID    : {}", identity.display_id());
+        println!("Lokasi: {}", identity::identity_path()?.display());
 
-    let mut terminal = Terminal::new(backend)?;
-
-    let mut app = App::new();
-
-    while app.running {
-        terminal.draw(|frame| {
-            ui::render(frame, &app);
-        })?;
-
-        event::handle_events(&mut app)?;
+        return Ok(());
     }
 
-    disable_raw_mode()?;
+    if args.len() > 1 {
+        eprintln!("Penggunaan:");
+        eprintln!("  srawung");
+        eprintln!("  srawung --create-identity ALIAS");
+        std::process::exit(2);
+    }
 
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    let config = config::load_or_create()?;
+    let identity = identity::Identity::load_or_anonymous()?;
 
-    terminal.show_cursor()?;
+    let _guard = TerminalGuard;
 
-    Ok(())
+    enable_raw_mode()?;
+    execute!(io::stdout(), EnterAlternateScreen)?;
+
+    let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
+
+    terminal.clear()?;
+
+    let result = app::run(&mut terminal, &config, &identity);
+
+    drop(terminal);
+
+    result
 }
