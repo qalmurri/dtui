@@ -7,15 +7,6 @@ pub struct Geometry {
 }
 
 impl Geometry {
-    pub fn new(x: u16, y: u16, width: u16, height: u16) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-
     pub fn cascade(index: usize, area_width: u16, area_height: u16) -> Self {
         let width = 38.min(area_width);
         let height = 10.min(area_height);

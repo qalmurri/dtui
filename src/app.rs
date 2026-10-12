@@ -74,6 +74,23 @@ pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
             .unwrap_or(WorkspaceId(0));
 
         match key.code {
+            // Move the focused window using HJKL.
+            KeyCode::Char('h') | KeyCode::Char('H') => {
+                move_focused_window(&mut state, terminal, -2, 0, workspace_id)?;
+            }
+
+            KeyCode::Char('j') | KeyCode::Char('J') => {
+                move_focused_window(&mut state, terminal, 0, 1, workspace_id)?;
+            }
+
+            KeyCode::Char('k') | KeyCode::Char('K') => {
+                move_focused_window(&mut state, terminal, 0, -1, workspace_id)?;
+            }
+
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                move_focused_window(&mut state, terminal, 2, 0, workspace_id)?;
+            }
+
             KeyCode::Char('1') => {
                 state.desktop.select_workspace(0);
                 state.window_manager.activate_workspace(WorkspaceId(0));
@@ -124,6 +141,26 @@ pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
             },
         }
     }
+
+    Ok(())
+}
+
+fn move_focused_window(
+    state: &mut AppState,
+    terminal: &Tui,
+    dx: i16,
+    dy: i16,
+    workspace_id: WorkspaceId,
+) -> Result<(), Box<dyn Error>> {
+    let terminal_size = terminal.size()?;
+
+    state.window_manager.move_focused(
+        dx,
+        dy,
+        terminal_size.width,
+        terminal_size.height.saturating_sub(2),
+        workspace_id,
+    );
 
     Ok(())
 }

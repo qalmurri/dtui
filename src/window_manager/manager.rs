@@ -96,6 +96,43 @@ impl WindowManager {
         self.focus.set(next);
     }
 
+    pub fn move_focused(
+        &mut self,
+        dx: i16,
+        dy: i16,
+        area_width: u16,
+        area_height: u16,
+        workspace_id: WorkspaceId,
+    ) {
+        let Some(id) = self.focus.window_id else {
+            return;
+        };
+
+        let Some(window) = self
+            .windows
+            .iter_mut()
+            .find(|window| window.id == id && window.workspace_id == workspace_id)
+        else {
+            return;
+        };
+
+        let geometry = window.geometry.fit(area_width, area_height);
+
+        let max_x = area_width.saturating_sub(geometry.width);
+        let max_y = area_height.saturating_sub(geometry.height);
+
+        let x = (i32::from(geometry.x) + i32::from(dx)).clamp(0, i32::from(max_x)) as u16;
+
+        let y = (i32::from(geometry.y) + i32::from(dy)).clamp(0, i32::from(max_y)) as u16;
+
+        window.geometry = super::geometry::Geometry {
+            x,
+            y,
+            width: geometry.width,
+            height: geometry.height,
+        };
+    }
+
     pub fn get(&self, id: u64) -> Option<&Window> {
         self.windows.iter().find(|window| window.id == id)
     }
