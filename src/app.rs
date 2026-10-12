@@ -30,13 +30,18 @@ impl Default for AppState {
 pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
     let mut state = AppState::default();
 
-    state
-        .window_manager
-        .create("Terminal", Geometry::new(2, 2, 38, 10), WorkspaceId(0));
+    let terminal_size = terminal.size()?;
+    let desktop_height = terminal_size.height.saturating_sub(2);
+
+    state.window_manager.create(
+        "Terminal",
+        Geometry::cascade(0, terminal_size.width, desktop_height),
+        WorkspaceId(0),
+    );
 
     state.window_manager.create(
         "System Monitor",
-        Geometry::new(12, 7, 38, 10),
+        Geometry::cascade(0, terminal_size.width, desktop_height),
         WorkspaceId(1),
     );
 
@@ -84,12 +89,21 @@ pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
             }
 
             KeyCode::Char('n') => {
-                let count = state.window_manager.windows.len() as u16;
-                let offset = count.saturating_mul(2);
+                let terminal_size = terminal.size()?;
+                let desktop_height = terminal_size.height.saturating_sub(2);
+
+                let count = state
+                    .window_manager
+                    .windows
+                    .iter()
+                    .filter(|window| window.workspace_id == workspace_id)
+                    .count();
+
+                let title = format!("Window {}", state.window_manager.windows.len() + 1);
 
                 state.window_manager.create(
-                    format!("Window {}", state.window_manager.windows.len() + 1),
-                    Geometry::new(2 + offset, 2 + offset, 38, 10),
+                    title,
+                    Geometry::cascade(count, terminal_size.width, desktop_height),
                     workspace_id,
                 );
             }

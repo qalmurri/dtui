@@ -64,11 +64,7 @@ fn render_desktop(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
             continue;
         }
 
-        let geometry = window.geometry;
-
-        if geometry.x >= area.width || geometry.y >= area.height {
-            continue;
-        }
+        let geometry = window.geometry.fit(area.width, area.height);
 
         let window_area = Rect::new(
             area.x + geometry.x,
