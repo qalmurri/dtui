@@ -14,36 +14,27 @@ pub enum Action {
 }
 
 pub fn parse_key(value: &str) -> Result<KeyCode, String> {
-    let normalized = value.trim().to_lowercase();
+    let value = value.trim().to_lowercase();
 
-    let key = match normalized.as_str() {
-        "esc" | "escape" => KeyCode::Esc,
-        "enter" | "return" => KeyCode::Enter,
-        "up" => KeyCode::Up,
-        "down" => KeyCode::Down,
-        "left" => KeyCode::Left,
-        "right" => KeyCode::Right,
-        "tab" => KeyCode::Tab,
-        "backspace" => KeyCode::Backspace,
-        "delete" => KeyCode::Delete,
-        "home" => KeyCode::Home,
-        "end" => KeyCode::End,
-        "pageup" => KeyCode::PageUp,
-        "pagedown" => KeyCode::PageDown,
-        "space" => KeyCode::Char(' '),
+    match value.as_str() {
+        "esc" | "escape" => Ok(KeyCode::Esc),
+        "enter" | "return" => Ok(KeyCode::Enter),
+        "up" => Ok(KeyCode::Up),
+        "down" => Ok(KeyCode::Down),
+        "left" => Ok(KeyCode::Left),
+        "right" => Ok(KeyCode::Right),
+        "tab" => Ok(KeyCode::Tab),
+        "space" => Ok(KeyCode::Char(' ')),
+        "f1" => Ok(KeyCode::F(1)),
+        "f2" => Ok(KeyCode::F(2)),
         _ => {
             let mut chars = value.chars();
-
             match (chars.next(), chars.next()) {
-                (Some(ch), None) => KeyCode::Char(ch),
-                _ => {
-                    return Err(format!("Unsupported key name: '{value}'"));
-                }
+                (Some(ch), None) => Ok(KeyCode::Char(ch)),
+                _ => Err(format!("Nama tombol tidak didukung: '{value}'")),
             }
         }
-    };
-
-    Ok(key)
+    }
 }
 
 pub fn validate(bindings: &Keybindings) -> Result<(), Box<dyn Error>> {
@@ -56,17 +47,15 @@ pub fn validate(bindings: &Keybindings) -> Result<(), Box<dyn Error>> {
     ];
 
     let mut seen: Vec<(KeyCode, &str)> = Vec::new();
-
     for (action, value) in entries {
-        let key =
-            parse_key(value).map_err(|error| format!("Invalid keybinding '{action}': {error}"))?;
+        let key = parse_key(value)
+            .map_err(|error| format!("Keybinding '{action}' tidak valid: {error}"))?;
 
         if let Some((_, previous)) = seen.iter().find(|(existing, _)| existing == &key) {
             return Err(
-                format!("Key '{value}' is assigned to both '{previous}' and '{action}'").into(),
+                format!("Tombol '{value}' dipakai oleh '{previous}' dan '{action}'").into(),
             );
         }
-
         seen.push((key, action));
     }
 
@@ -74,37 +63,15 @@ pub fn validate(bindings: &Keybindings) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn resolve(key: KeyCode, bindings: &Keybindings) -> Option<Action> {
-    if parse_key(&bindings.quit).ok() == Some(key) {
-        Some(Action::Quit)
-    } else if parse_key(&bindings.back).ok() == Some(key) {
-        Some(Action::Back)
-    } else if parse_key(&bindings.navigate_up).ok() == Some(key) {
-        Some(Action::NavigateUp)
-    } else if parse_key(&bindings.navigate_down).ok() == Some(key) {
-        Some(Action::NavigateDown)
-    } else if parse_key(&bindings.select).ok() == Some(key) {
-        Some(Action::Select)
-    } else {
-        None
-    }
-}
+    let entries = [
+        (&bindings.quit, Action::Quit),
+        (&bindings.back, Action::Back),
+        (&bindings.navigate_up, Action::NavigateUp),
+        (&bindings.navigate_down, Action::NavigateDown),
+        (&bindings.select, Action::Select),
+    ];
 
-pub fn format_key(value: &str) -> String {
-    match value.to_lowercase().as_str() {
-        "esc" | "escape" => "Esc".into(),
-        "enter" | "return" => "Enter".into(),
-        "up" => "↑".into(),
-        "down" => "↓".into(),
-        "left" => "←".into(),
-        "right" => "→".into(),
-        "tab" => "Tab".into(),
-        "backspace" => "Backspace".into(),
-        "delete" => "Delete".into(),
-        "home" => "Home".into(),
-        "end" => "End".into(),
-        "pageup" => "PageUp".into(),
-        "pagedown" => "PageDown".into(),
-        "space" => "Space".into(),
-        _ => value.to_uppercase(),
-    }
+    entries
+        .into_iter()
+        .find_map(|(binding, action)| (parse_key(binding).ok() == Some(key)).then_some(action))
 }

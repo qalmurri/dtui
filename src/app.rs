@@ -1,33 +1,113 @@
 use std::{error::Error, time::Duration};
 
-use crossterm::event::{Event, KeyEventKind};
+use crossterm::event::{Event, KeyCode, KeyEventKind};
 
 use crate::{
     Tui,
-    config::Config,
-    event,
-    identity::Identity,
-    keybindings::{self, Action},
-    ui,
+    core::{input, renderer, runtime},
+    desktop::{DesktopState, workspace::WorkspaceId},
+    window_manager::{Geometry, WindowManager},
 };
 
-pub fn run(terminal: &mut Tui, config: &Config, identity: &Identity) -> Result<(), Box<dyn Error>> {
-    loop {
-        terminal
-            .draw(|frame| ui::layout::render_dashboard(frame, &config.keybindings, identity))?;
+pub struct AppState {
+    pub running: bool,
+    pub show_help: bool,
+    pub desktop: DesktopState,
+    pub window_manager: WindowManager,
+}
 
-        if let Some(Event::Key(key)) = event::poll_event(Duration::from_millis(100))? {
-            if key.kind != KeyEventKind::Press {
-                continue;
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            running: true,
+            show_help: false,
+            desktop: DesktopState::default(),
+            window_manager: WindowManager::default(),
+        }
+    }
+}
+
+pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
+    let mut state = AppState::default();
+
+    state
+        .window_manager
+        .create("Terminal", Geometry::new(2, 2, 38, 10), WorkspaceId(0));
+
+    state.window_manager.create(
+        "System Monitor",
+        Geometry::new(12, 7, 38, 10),
+        WorkspaceId(1),
+    );
+
+    state.window_manager.activate_workspace(WorkspaceId(0));
+
+    let poll_interval = Duration::from_millis(100);
+
+    while state.running {
+        terminal.draw(|frame| {
+            renderer::render(frame, &state);
+        })?;
+
+        let Some(Event::Key(key)) = runtime::poll(poll_interval)? else {
+            continue;
+        };
+
+        if key.kind != KeyEventKind::Press {
+            continue;
+        }
+
+        if state.show_help {
+            state.show_help = false;
+            continue;
+        }
+
+        let workspace_id = state
+            .desktop
+            .active_workspace()
+            .map(|workspace| workspace.id)
+            .unwrap_or(WorkspaceId(0));
+
+        match key.code {
+            KeyCode::Char('1') => {
+                state.desktop.select_workspace(0);
+                state.window_manager.activate_workspace(WorkspaceId(0));
             }
 
-            match keybindings::resolve(key.code, &config.keybindings) {
-                Some(Action::Quit) | Some(Action::Back) => break,
-                Some(Action::NavigateUp)
-                | Some(Action::NavigateDown)
-                | Some(Action::Select)
-                | None => {}
+            KeyCode::Char('2') => {
+                state.desktop.select_workspace(1);
+                state.window_manager.activate_workspace(WorkspaceId(1));
             }
+
+            KeyCode::Tab => {
+                state.window_manager.focus_next(workspace_id);
+            }
+
+            KeyCode::Char('n') => {
+                let count = state.window_manager.windows.len() as u16;
+                let offset = count.saturating_mul(2);
+
+                state.window_manager.create(
+                    format!("Window {}", state.window_manager.windows.len() + 1),
+                    Geometry::new(2 + offset, 2 + offset, 38, 10),
+                    workspace_id,
+                );
+            }
+
+            KeyCode::Char('x') => {
+                if let Some(window) = state.window_manager.focused() {
+                    if window.workspace_id == workspace_id {
+                        let id = window.id;
+                        state.window_manager.close(id, workspace_id);
+                    }
+                }
+            }
+
+            _ => match input::dispatch_key(key.code) {
+                input::Action::Quit => state.running = false,
+                input::Action::ToggleHelp => state.show_help = true,
+                input::Action::Back | input::Action::None => {}
+            },
         }
     }
 

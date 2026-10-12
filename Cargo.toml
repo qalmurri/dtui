@@ -1,5 +1,5 @@
 [package]
-name = "srawung"
+name = "dtui"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,6 +9,3 @@ crossterm = "0.29"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 directories = "6"
-ed25519-dalek = { version = "2", features = ["rand_core"] }
-rand = "0.8"
-hex = "0.4"
