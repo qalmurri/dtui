@@ -1,4 +1,3 @@
-pub mod background;
 pub mod desktop;
 pub mod panel;
 pub mod status;

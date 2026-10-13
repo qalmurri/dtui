@@ -1,12 +1,9 @@
-use super::{
-    background::Background, panel::PanelState, status::DesktopStatus, workspace::Workspace,
-};
+use super::{panel::PanelState, status::DesktopStatus, workspace::Workspace};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DesktopState {
     pub workspaces: Vec<Workspace>,
     pub active_workspace: usize,
-    pub background: Background,
     pub panel: PanelState,
     pub status: DesktopStatus,
 }
@@ -16,7 +13,6 @@ impl Default for DesktopState {
         Self {
             workspaces: vec![Workspace::new(0, "DEV"), Workspace::new(1, "TOOLS")],
             active_workspace: 0,
-            background: Background,
             panel: PanelState::default(),
             status: DesktopStatus::default(),
         }

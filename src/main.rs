@@ -2,7 +2,6 @@ mod app;
 mod config;
 mod core;
 mod desktop;
-mod event;
 mod keybindings;
 mod scripting;
 mod ui;
@@ -44,9 +43,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     enable_raw_mode()?;
+    let _guard = TerminalGuard;
+
     execute!(io::stdout(), EnterAlternateScreen)?;
 
-    let _guard = TerminalGuard;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     terminal.clear()?;
 

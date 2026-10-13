@@ -1,7 +1,11 @@
 use std::{io, time::Duration};
 
-use crossterm::event::Event;
+use crossterm::event::{self, Event};
 
 pub fn poll(timeout: Duration) -> io::Result<Option<Event>> {
-    crate::event::poll_event(timeout)
+    if event::poll(timeout)? {
+        Ok(Some(event::read()?))
+    } else {
+        Ok(None)
+    }
 }

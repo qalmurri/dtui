@@ -53,7 +53,7 @@ pub fn run(terminal: &mut Tui, config: &Config) -> Result<(), Box<dyn Error>> {
 
     while state.running {
         terminal.draw(|frame| {
-            renderer::render(frame, &state);
+            renderer::render(frame, &state, config);
         })?;
 
         let Some(Event::Key(key)) = runtime::poll(poll_interval)? else {
@@ -132,7 +132,7 @@ pub fn run(terminal: &mut Tui, config: &Config) -> Result<(), Box<dyn Error>> {
                 if let Some(window) = state.window_manager.focused() {
                     if window.workspace_id == workspace_id {
                         let id = window.id;
-                        state.window_manager.close(id, workspace_id);
+                        state.window_manager.close(id);
                     }
                 }
             }
