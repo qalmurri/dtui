@@ -24,6 +24,20 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
 
     if state.show_help {
         render_help(frame, sections[1], config);
+    } else if let Some(input) = &state.workspace_input {
+        let title = match input.mode {
+            crate::app::WorkspaceInputMode::Create => "Create Workspace",
+            crate::app::WorkspaceInputMode::Rename => "Rename Workspace",
+        };
+
+        let dialog = Paragraph::new(format!(
+            "{title}\n\nName: {}_\n\nEnter: save | Esc: cancel",
+            input.value
+        ))
+        .block(Block::default().borders(Borders::ALL).title(title));
+
+        let dialog_area = centered_rect(60, 30, sections[1]);
+        frame.render_widget(dialog, dialog_area);
     } else {
         render_desktop(frame, sections[1], state);
     }
@@ -32,27 +46,32 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
 }
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, state: &AppState, config: &Config) {
-    let workspace = state
-        .desktop
-        .active_workspace()
-        .map(|workspace| workspace.name.as_str())
-        .unwrap_or("NONE");
-
-    let header = Paragraph::new(Line::from(vec![
+    let mut spans = vec![
         Span::styled(
             format!(" {} ", config.desktop.title),
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::raw("| "),
-        Span::raw(workspace),
-        Span::raw(" | "),
-        Span::raw(format!(
-            "{}:DEV  {}:TOOLS",
-            config.keybindings.workspace_1, config.keybindings.workspace_2
-        )),
-    ]));
+    ];
 
-    frame.render_widget(header, area);
+    for (index, workspace) in state.desktop.workspaces.iter().enumerate() {
+        if index > 0 {
+            spans.push(Span::raw("  "));
+        }
+
+        let label = format!("[{}] {}", index + 1, workspace.name);
+
+        if index == state.desktop.active_workspace {
+            spans.push(Span::styled(
+                label,
+                Style::default().add_modifier(Modifier::BOLD),
+            ));
+        } else {
+            spans.push(Span::raw(label));
+        }
+    }
+
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 fn render_desktop(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
@@ -119,8 +138,13 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         shortcut(&bindings.resize_down, "Increase window height"),
         shortcut(&bindings.new_window, "Create new window"),
         shortcut(&bindings.close_window, "Close focused window"),
-        shortcut(&bindings.workspace_1, "Switch to workspace DEV"),
-        shortcut(&bindings.workspace_2, "Switch to workspace TOOLS"),
+        shortcut(&bindings.workspace_1, "Switch to first workspace"),
+        shortcut(&bindings.workspace_2, "Switch to second workspace"),
+        shortcut(&bindings.workspace_previous, "Previous workspace"),
+        shortcut(&bindings.workspace_next, "Next workspace"),
+        shortcut(&bindings.workspace_create, "Create workspace"),
+        shortcut(&bindings.workspace_rename, "Rename workspace"),
+        shortcut(&bindings.workspace_delete, "Delete workspace"),
         Line::raw(""),
         Line::raw("Press any key to return."),
     ];
@@ -159,6 +183,26 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState, config: &C
     ]));
 
     frame.render_widget(footer, area);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
+    let vertical = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(area);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(vertical[1])[1]
 }
 
 #[cfg(test)]

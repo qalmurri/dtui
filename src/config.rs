@@ -58,6 +58,12 @@ pub struct Keybindings {
 
     pub workspace_1: String,
     pub workspace_2: String,
+
+    pub workspace_previous: String,
+    pub workspace_next: String,
+    pub workspace_create: String,
+    pub workspace_rename: String,
+    pub workspace_delete: String,
 }
 
 impl Default for Config {
@@ -119,6 +125,12 @@ impl Default for Keybindings {
 
             workspace_1: "1".into(),
             workspace_2: "2".into(),
+
+            workspace_previous: "[".into(),
+            workspace_next: "]".into(),
+            workspace_create: "c".into(),
+            workspace_rename: "r".into(),
+            workspace_delete: "d".into(),
         }
     }
 }

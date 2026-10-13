@@ -4,6 +4,7 @@ mod core;
 mod desktop;
 mod keybindings;
 mod scripting;
+mod session;
 mod ui;
 mod window_manager;
 
@@ -42,6 +43,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let saved_session = match session::SessionState::load() {
+        Ok(session) => session,
+        Err(error) => {
+            eprintln!("DTUI: sesi tidak dapat dipulihkan: {error}");
+            None
+        }
+    };
+
     enable_raw_mode()?;
     let _guard = TerminalGuard;
 
@@ -50,7 +59,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     terminal.clear()?;
 
-    app::run(&mut terminal, &config)?;
+    app::run(&mut terminal, &config, saved_session)?;
 
     Ok(())
 }

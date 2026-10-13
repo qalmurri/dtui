@@ -11,6 +11,46 @@ pub struct WindowManager {
 }
 
 impl WindowManager {
+    pub fn next_id(&self) -> u64 {
+        self.next_id
+    }
+
+    pub fn restore_state(
+        &mut self,
+        windows: Vec<Window>,
+        z_order: Vec<u64>,
+        focused_window_id: Option<u64>,
+        next_id: u64,
+    ) {
+        use std::collections::HashSet;
+
+        let valid_ids: HashSet<u64> = windows.iter().map(|w| w.id).collect();
+
+        self.windows = windows;
+        self.z_order.windows = z_order
+            .into_iter()
+            .filter(|id| valid_ids.contains(id))
+            .collect();
+
+        // Tambahkan jendela yang belum tercantum di z-order.
+        for window in &self.windows {
+            if !self.z_order.windows.contains(&window.id) {
+                self.z_order.windows.push(window.id);
+            }
+        }
+
+        self.focus
+            .set(focused_window_id.filter(|id| valid_ids.contains(id)));
+
+        self.next_id = next_id.max(
+            self.windows
+                .iter()
+                .map(|w| w.id.saturating_add(1))
+                .max()
+                .unwrap_or(0),
+        );
+    }
+
     pub fn create(
         &mut self,
         title: impl Into<String>,

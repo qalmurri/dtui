@@ -19,6 +19,11 @@ pub enum Action {
     NewWindow,
     Workspace1,
     Workspace2,
+    WorkspacePrevious,
+    WorkspaceNext,
+    WorkspaceCreate,
+    WorkspaceRename,
+    WorkspaceDelete,
 }
 
 const ACTIONS: &[(&str, fn(&Keybindings) -> &str, Action)] = &[
@@ -37,6 +42,31 @@ const ACTIONS: &[(&str, fn(&Keybindings) -> &str, Action)] = &[
     ("new_window", |b| &b.new_window, Action::NewWindow),
     ("workspace_1", |b| &b.workspace_1, Action::Workspace1),
     ("workspace_2", |b| &b.workspace_2, Action::Workspace2),
+    (
+        "workspace_previous",
+        |b| &b.workspace_previous,
+        Action::WorkspacePrevious,
+    ),
+    (
+        "workspace_next",
+        |b| &b.workspace_next,
+        Action::WorkspaceNext,
+    ),
+    (
+        "workspace_create",
+        |b| &b.workspace_create,
+        Action::WorkspaceCreate,
+    ),
+    (
+        "workspace_rename",
+        |b| &b.workspace_rename,
+        Action::WorkspaceRename,
+    ),
+    (
+        "workspace_delete",
+        |b| &b.workspace_delete,
+        Action::WorkspaceDelete,
+    ),
 ];
 
 pub fn parse_key(value: &str) -> Result<(KeyCode, KeyModifiers), String> {

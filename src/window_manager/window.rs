@@ -1,8 +1,9 @@
-use crate::desktop::workspace::WorkspaceId;
+use serde::{Deserialize, Serialize};
 
 use super::geometry::Geometry;
+use crate::desktop::workspace::WorkspaceId;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Window {
     pub id: u64,
     pub title: String,
