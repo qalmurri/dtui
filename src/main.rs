@@ -1,7 +1,10 @@
 mod app;
+mod config;
 mod core;
 mod desktop;
 mod event;
+mod keybindings;
+mod scripting;
 mod ui;
 mod window_manager;
 
@@ -28,6 +31,18 @@ impl Drop for TerminalGuard {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let config = config::load_or_create()?;
+
+    if config.lua.enabled {
+        if let Err(error) = scripting::lua_runtime::run_init(&config) {
+            if config.lua.stop_on_error {
+                return Err(error);
+            }
+
+            eprintln!("DTUI Lua warning: {error}");
+        }
+    }
+
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
 
@@ -35,7 +50,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     terminal.clear()?;
 
-    app::run(&mut terminal)?;
+    app::run(&mut terminal, &config)?;
 
     Ok(())
 }

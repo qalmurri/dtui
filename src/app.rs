@@ -1,11 +1,13 @@
 use std::{error::Error, time::Duration};
 
-use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{Event, KeyEventKind};
 
 use crate::{
     Tui,
-    core::{input, renderer, runtime},
+    config::Config,
+    core::{renderer, runtime},
     desktop::{DesktopState, workspace::WorkspaceId},
+    keybindings::{self, Action},
     window_manager::{Geometry, WindowManager},
 };
 
@@ -27,7 +29,7 @@ impl Default for AppState {
     }
 }
 
-pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
+pub fn run(terminal: &mut Tui, config: &Config) -> Result<(), Box<dyn Error>> {
     let mut state = AppState::default();
 
     let terminal_size = terminal.size()?;
@@ -47,7 +49,7 @@ pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
 
     state.window_manager.activate_workspace(WorkspaceId(0));
 
-    let poll_interval = Duration::from_millis(100);
+    let poll_interval = Duration::from_millis(config.runtime.poll_interval_ms);
 
     while state.running {
         terminal.draw(|frame| {
@@ -67,72 +69,77 @@ pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
             continue;
         }
 
+        let Some(action) = keybindings::resolve(key, &config.keybindings) else {
+            continue;
+        };
+
         let workspace_id = state
             .desktop
             .active_workspace()
             .map(|workspace| workspace.id)
             .unwrap_or(WorkspaceId(0));
 
-        // Alt + H/J/K/L: resize the focused window.
-        if key.modifiers.contains(KeyModifiers::ALT) {
-            let resize = match key.code {
-                KeyCode::Char('h' | 'H') => Some((-1, 0)),
-                KeyCode::Char('j' | 'J') => Some((0, 1)),
-                KeyCode::Char('k' | 'K') => Some((0, -1)),
-                KeyCode::Char('l' | 'L') => Some((1, 0)),
-                _ => None,
-            };
+        match action {
+            Action::Quit => {
+                state.running = false;
+            }
 
-            if let Some((dw, dh)) = resize {
-                let terminal_size = terminal.size()?;
+            Action::Help => {
+                state.show_help = true;
+            }
+
+            Action::MoveLeft => {
+                move_focused_window(&mut state, terminal, -2, 0, workspace_id)?;
+            }
+
+            Action::MoveDown => {
+                move_focused_window(&mut state, terminal, 0, 1, workspace_id)?;
+            }
+
+            Action::MoveUp => {
+                move_focused_window(&mut state, terminal, 0, -1, workspace_id)?;
+            }
+
+            Action::MoveRight => {
+                move_focused_window(&mut state, terminal, 2, 0, workspace_id)?;
+            }
+
+            Action::ResizeLeft | Action::ResizeDown | Action::ResizeUp | Action::ResizeRight => {
+                let (dw, dh) = match action {
+                    Action::ResizeLeft => (-1, 0),
+                    Action::ResizeDown => (0, 1),
+                    Action::ResizeUp => (0, -1),
+                    Action::ResizeRight => (1, 0),
+                    _ => unreachable!(),
+                };
+
+                let size = terminal.size()?;
 
                 state.window_manager.resize_focused(
                     dw,
                     dh,
-                    terminal_size.width,
-                    terminal_size.height.saturating_sub(2),
+                    size.width,
+                    size.height.saturating_sub(2),
                     workspace_id,
                 );
-
-                continue;
-            }
-        }
-
-        match key.code {
-            // H/J/K/L: move the focused window.
-            KeyCode::Char('h' | 'H') => {
-                move_focused_window(&mut state, terminal, -2, 0, workspace_id)?;
             }
 
-            KeyCode::Char('j' | 'J') => {
-                move_focused_window(&mut state, terminal, 0, 1, workspace_id)?;
-            }
-
-            KeyCode::Char('k' | 'K') => {
-                move_focused_window(&mut state, terminal, 0, -1, workspace_id)?;
-            }
-
-            KeyCode::Char('l' | 'L') => {
-                move_focused_window(&mut state, terminal, 2, 0, workspace_id)?;
-            }
-
-            KeyCode::Char('1') => {
-                state.desktop.select_workspace(0);
-                state.window_manager.activate_workspace(WorkspaceId(0));
-            }
-
-            KeyCode::Char('2') => {
-                state.desktop.select_workspace(1);
-                state.window_manager.activate_workspace(WorkspaceId(1));
-            }
-
-            KeyCode::Tab => {
+            Action::FocusNext => {
                 state.window_manager.focus_next(workspace_id);
             }
 
-            KeyCode::Char('n') => {
-                let terminal_size = terminal.size()?;
-                let desktop_height = terminal_size.height.saturating_sub(2);
+            Action::CloseWindow => {
+                if let Some(window) = state.window_manager.focused() {
+                    if window.workspace_id == workspace_id {
+                        let id = window.id;
+                        state.window_manager.close(id, workspace_id);
+                    }
+                }
+            }
+
+            Action::NewWindow => {
+                let size = terminal.size()?;
+                let desktop_height = size.height.saturating_sub(2);
 
                 let count = state
                     .window_manager
@@ -145,25 +152,20 @@ pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
 
                 state.window_manager.create(
                     title,
-                    Geometry::cascade(count, terminal_size.width, desktop_height),
+                    Geometry::cascade(count, size.width, desktop_height),
                     workspace_id,
                 );
             }
 
-            KeyCode::Char('x') => {
-                if let Some(window) = state.window_manager.focused() {
-                    if window.workspace_id == workspace_id {
-                        let id = window.id;
-                        state.window_manager.close(id, workspace_id);
-                    }
-                }
+            Action::Workspace1 => {
+                state.desktop.select_workspace(0);
+                state.window_manager.activate_workspace(WorkspaceId(0));
             }
 
-            _ => match input::dispatch_key(key.code) {
-                input::Action::Quit => state.running = false,
-                input::Action::ToggleHelp => state.show_help = true,
-                input::Action::Back | input::Action::None => {}
-            },
+            Action::Workspace2 => {
+                state.desktop.select_workspace(1);
+                state.window_manager.activate_workspace(WorkspaceId(1));
+            }
         }
     }
 
