@@ -1,10 +1,14 @@
-use std::{collections::HashSet, error::Error};
-
 use super::SessionState;
+use crate::desktop::desktop::MAX_WORKSPACES;
+use std::{collections::HashSet, error::Error};
 
 pub(super) fn validate(session: &SessionState) -> Result<(), Box<dyn Error>> {
     if session.workspaces.is_empty() {
         return Err("Sesi DTUI tidak memiliki workspace".into());
+    }
+
+    if session.workspaces.len() > MAX_WORKSPACES {
+        return Err(format!("Sesi melebihi batas maksimal {MAX_WORKSPACES} workspace").into());
     }
 
     let workspace_ids: HashSet<_> = session

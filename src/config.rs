@@ -1,9 +1,7 @@
-use std::{error::Error, fs, io, path::PathBuf};
-
+use crate::keybindings::validate;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-
-use crate::keybindings::validate;
+use std::{error::Error, fs, io, path::PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -58,6 +56,13 @@ pub struct Keybindings {
 
     pub workspace_1: String,
     pub workspace_2: String,
+    pub workspace_3: String,
+    pub workspace_4: String,
+    pub workspace_5: String,
+    pub workspace_6: String,
+    pub workspace_7: String,
+    pub workspace_8: String,
+    pub workspace_9: String,
 
     pub workspace_previous: String,
     pub workspace_next: String,
@@ -125,6 +130,13 @@ impl Default for Keybindings {
 
             workspace_1: "1".into(),
             workspace_2: "2".into(),
+            workspace_3: "3".into(),
+            workspace_4: "4".into(),
+            workspace_5: "5".into(),
+            workspace_6: "6".into(),
+            workspace_7: "7".into(),
+            workspace_8: "8".into(),
+            workspace_9: "9".into(),
 
             workspace_previous: "[".into(),
             workspace_next: "]".into(),

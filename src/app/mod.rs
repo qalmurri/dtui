@@ -3,16 +3,12 @@ pub(crate) mod pty;
 mod runtime;
 mod session;
 mod workspace;
-
-use crate::{desktop::DesktopState, window_manager::WindowManager};
-
 use self::pty::TerminalManager;
-
+use crate::{desktop::DesktopState, window_manager::WindowManager};
 pub use runtime::run;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkspaceInputMode {
-    Create,
     Rename,
 }
 

@@ -14,10 +14,12 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
     match action {
         Action::Quit => state.running = false,
         Action::Help => state.show_help = true,
+
         Action::MoveLeft => move_focused_window(state, terminal, -2, 0, workspace_id)?,
         Action::MoveDown => move_focused_window(state, terminal, 0, 1, workspace_id)?,
         Action::MoveUp => move_focused_window(state, terminal, 0, -1, workspace_id)?,
         Action::MoveRight => move_focused_window(state, terminal, 2, 0, workspace_id)?,
+
         Action::ResizeLeft | Action::ResizeDown | Action::ResizeUp | Action::ResizeRight => {
             let (dw, dh) = match action {
                 Action::ResizeLeft => (-1, 0),
@@ -28,6 +30,7 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
             };
 
             let size = terminal.size()?;
+
             state.window_manager.resize_focused(
                 dw,
                 dh,
@@ -36,7 +39,9 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 workspace_id,
             );
         }
+
         Action::FocusNext => state.window_manager.focus_next(workspace_id),
+
         Action::CloseWindow => {
             let focused_id = state
                 .window_manager
@@ -49,8 +54,10 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 state.window_manager.close(id);
             }
         }
+
         Action::NewWindow => {
             let size = terminal.size()?;
+
             let count = state
                 .window_manager
                 .windows
@@ -59,16 +66,27 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 .count();
 
             let geometry = Geometry::cascade(count, size.width, size.height.saturating_sub(2));
+
             let id = state.window_manager.create(
                 format!("Terminal {}", count + 1),
                 geometry,
                 workspace_id,
             );
+
             state.terminals.spawn_for_window(id, geometry)?;
             state.terminal_input_mode = true;
         }
+
         Action::Workspace1 => workspace::select_index(state, 0),
         Action::Workspace2 => workspace::select_index(state, 1),
+        Action::Workspace3 => workspace::select_index(state, 2),
+        Action::Workspace4 => workspace::select_index(state, 3),
+        Action::Workspace5 => workspace::select_index(state, 4),
+        Action::Workspace6 => workspace::select_index(state, 5),
+        Action::Workspace7 => workspace::select_index(state, 6),
+        Action::Workspace8 => workspace::select_index(state, 7),
+        Action::Workspace9 => workspace::select_index(state, 8),
+
         Action::WorkspacePrevious => workspace::select_previous(state),
         Action::WorkspaceNext => workspace::select_next(state),
         Action::WorkspaceCreate => workspace::begin_create(state),
@@ -78,6 +96,7 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
 
     let size = terminal.size()?;
     let windows = state.window_manager.windows.clone();
+
     let _ = state
         .terminals
         .resize_all(&windows, size.width, size.height.saturating_sub(2));
@@ -93,6 +112,7 @@ fn move_focused_window(
     workspace_id: WorkspaceId,
 ) -> Result<(), Box<dyn Error>> {
     let size = terminal.size()?;
+
     state.window_manager.move_focused(
         dx,
         dy,
@@ -100,5 +120,6 @@ fn move_focused_window(
         size.height.saturating_sub(2),
         workspace_id,
     );
+
     Ok(())
 }

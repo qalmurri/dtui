@@ -26,7 +26,6 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
         render_help(frame, sections[1], config);
     } else if let Some(input) = &state.workspace_input {
         let title = match input.mode {
-            crate::app::WorkspaceInputMode::Create => "Create Workspace",
             crate::app::WorkspaceInputMode::Rename => "Rename Workspace",
         };
 

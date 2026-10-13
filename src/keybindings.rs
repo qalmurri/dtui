@@ -19,6 +19,13 @@ pub enum Action {
     NewWindow,
     Workspace1,
     Workspace2,
+    Workspace3,
+    Workspace4,
+    Workspace5,
+    Workspace6,
+    Workspace7,
+    Workspace8,
+    Workspace9,
     WorkspacePrevious,
     WorkspaceNext,
     WorkspaceCreate,
@@ -42,6 +49,13 @@ const ACTIONS: &[(&str, fn(&Keybindings) -> &str, Action)] = &[
     ("new_window", |b| &b.new_window, Action::NewWindow),
     ("workspace_1", |b| &b.workspace_1, Action::Workspace1),
     ("workspace_2", |b| &b.workspace_2, Action::Workspace2),
+    ("workspace_3", |b| &b.workspace_3, Action::Workspace3),
+    ("workspace_4", |b| &b.workspace_4, Action::Workspace4),
+    ("workspace_5", |b| &b.workspace_5, Action::Workspace5),
+    ("workspace_6", |b| &b.workspace_6, Action::Workspace6),
+    ("workspace_7", |b| &b.workspace_7, Action::Workspace7),
+    ("workspace_8", |b| &b.workspace_8, Action::Workspace8),
+    ("workspace_9", |b| &b.workspace_9, Action::Workspace9),
     (
         "workspace_previous",
         |b| &b.workspace_previous,
@@ -71,6 +85,7 @@ const ACTIONS: &[(&str, fn(&Keybindings) -> &str, Action)] = &[
 
 pub fn parse_key(value: &str) -> Result<(KeyCode, KeyModifiers), String> {
     let value = value.trim().to_lowercase();
+
     let (modifiers, key) = if let Some(key) = value.strip_prefix("alt+") {
         (KeyModifiers::ALT, key)
     } else {
@@ -90,6 +105,7 @@ pub fn parse_key(value: &str) -> Result<(KeyCode, KeyModifiers), String> {
         "f2" => KeyCode::F(2),
         _ => {
             let mut chars = key.chars();
+
             match (chars.next(), chars.next()) {
                 (Some(ch), None) => KeyCode::Char(ch),
                 _ => return Err(format!("Nama tombol tidak didukung: '{value}'")),
@@ -105,6 +121,7 @@ pub fn validate(bindings: &Keybindings) -> Result<(), Box<dyn Error>> {
 
     for (name, get_binding, _) in ACTIONS {
         let value = get_binding(bindings);
+
         let parsed = parse_key(value)
             .map_err(|error| format!("Keybinding '{name}' tidak valid: {error}"))?;
 

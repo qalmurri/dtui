@@ -21,10 +21,9 @@ pub fn select_next(state: &mut AppState) {
 }
 
 pub fn begin_create(state: &mut AppState) {
-    state.workspace_input = Some(WorkspaceInput {
-        mode: WorkspaceInputMode::Create,
-        value: String::new(),
-    });
+    if let Some(id) = state.desktop.create_workspace_auto() {
+        state.window_manager.activate_workspace(id);
+    }
 }
 
 pub fn begin_rename(state: &mut AppState) {
@@ -43,6 +42,7 @@ pub fn delete_active(state: &mut AppState) {
                 window.workspace_id = target_id;
             }
         }
+
         state.window_manager.activate_workspace(target_id);
     }
 }
@@ -59,11 +59,6 @@ pub fn handle_input(state: &mut AppState, key: KeyCode) {
             };
 
             match input.mode {
-                WorkspaceInputMode::Create => {
-                    if let Some(id) = state.desktop.create_workspace(&input.value) {
-                        state.window_manager.activate_workspace(id);
-                    }
-                }
                 WorkspaceInputMode::Rename => {
                     state.desktop.rename_active_workspace(&input.value);
                 }
