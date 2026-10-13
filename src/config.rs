@@ -88,7 +88,7 @@ impl Default for DesktopConfig {
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
-            poll_interval_ms: 100,
+            poll_interval_ms: 8,
         }
     }
 }

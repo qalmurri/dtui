@@ -1,9 +1,12 @@
 mod actions;
+pub(crate) mod pty;
 mod runtime;
 mod session;
 mod workspace;
 
 use crate::{desktop::DesktopState, window_manager::WindowManager};
+
+use self::pty::TerminalManager;
 
 pub use runtime::run;
 
@@ -25,6 +28,8 @@ pub struct AppState {
     pub desktop: DesktopState,
     pub window_manager: WindowManager,
     pub workspace_input: Option<WorkspaceInput>,
+    pub terminals: TerminalManager,
+    pub terminal_input_mode: bool,
 }
 
 impl Default for AppState {
@@ -35,6 +40,8 @@ impl Default for AppState {
             desktop: DesktopState::default(),
             window_manager: WindowManager::default(),
             workspace_input: None,
+            terminals: TerminalManager::default(),
+            terminal_input_mode: true,
         }
     }
 }

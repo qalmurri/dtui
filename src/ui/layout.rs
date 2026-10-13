@@ -108,6 +108,9 @@ fn render_desktop(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
             window_area,
             window,
             state.window_manager.focus.is_focused(window.id),
+            state.terminals.screen(window.id),
+            state.terminals.is_exited(window.id),
+            state.terminal_input_mode && state.window_manager.focus.is_focused(window.id),
         );
     }
 }
@@ -122,7 +125,10 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, config: &Config) {
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Line::raw(""),
-        shortcut(&bindings.quit, "Quit DTUI"),
+        shortcut(
+            &bindings.quit,
+            "Quit DTUI (desktop mode; press F2 first in terminal mode)",
+        ),
         shortcut(&bindings.help, "Toggle shortcut help"),
         shortcut(&bindings.focus_next, "Focus next window"),
         shortcut(
@@ -146,6 +152,7 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         shortcut(&bindings.workspace_rename, "Rename workspace"),
         shortcut(&bindings.workspace_delete, "Delete workspace"),
         Line::raw(""),
+        shortcut("F2", "Toggle terminal input / desktop shortcuts"),
         Line::raw("Press any key to return."),
     ];
 
@@ -175,6 +182,12 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState, config: &C
         )),
         Span::raw(" | Focus: "),
         Span::raw(bindings.focus_next.as_str()),
+        Span::raw(" | Mode: "),
+        Span::raw(if state.terminal_input_mode {
+            "Terminal (F2 desktop)"
+        } else {
+            "Desktop (F2 terminal)"
+        }),
         Span::raw(" | Help: "),
         Span::raw(bindings.help.as_str()),
         Span::raw(" | Quit: "),

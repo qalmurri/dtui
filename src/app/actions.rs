@@ -45,6 +45,7 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 .map(|window| window.id);
 
             if let Some(id) = focused_id {
+                state.terminals.remove(id);
                 state.window_manager.close(id);
             }
         }
@@ -57,11 +58,14 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 .filter(|window| window.workspace_id == workspace_id)
                 .count();
 
-            state.window_manager.create(
-                format!("Window {}", count + 1),
-                Geometry::cascade(count, size.width, size.height.saturating_sub(2)),
+            let geometry = Geometry::cascade(count, size.width, size.height.saturating_sub(2));
+            let id = state.window_manager.create(
+                format!("Terminal {}", count + 1),
+                geometry,
                 workspace_id,
             );
+            state.terminals.spawn_for_window(id, geometry)?;
+            state.terminal_input_mode = true;
         }
         Action::Workspace1 => workspace::select_index(state, 0),
         Action::Workspace2 => workspace::select_index(state, 1),
@@ -71,6 +75,12 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
         Action::WorkspaceRename => workspace::begin_rename(state),
         Action::WorkspaceDelete => workspace::delete_active(state),
     }
+
+    let size = terminal.size()?;
+    let windows = state.window_manager.windows.clone();
+    let _ = state
+        .terminals
+        .resize_all(&windows, size.width, size.height.saturating_sub(2));
 
     Ok(())
 }

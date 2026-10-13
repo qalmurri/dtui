@@ -12,7 +12,7 @@ pub fn restore_or_initialize(
     saved_session: Option<crate::session::SessionState>,
     terminal_width: u16,
     desktop_height: u16,
-) {
+) -> Result<(), Box<dyn Error>> {
     let restored = saved_session.is_some_and(|session| restore(state, session));
 
     if !restored {
@@ -22,12 +22,18 @@ pub fn restore_or_initialize(
             .map(|workspace| workspace.id)
             .unwrap_or(WorkspaceId(0));
 
-        state.window_manager.create(
-            "Terminal",
-            Geometry::cascade(0, terminal_width, desktop_height),
-            workspace_id,
-        );
+        let geometry = Geometry::cascade(0, terminal_width, desktop_height);
+        let window_id = state
+            .window_manager
+            .create("Terminal", geometry, workspace_id);
+        state.terminals.spawn_for_window(window_id, geometry)?;
+    } else {
+        state
+            .terminals
+            .start_for_windows(&state.window_manager.windows)?;
     }
+
+    Ok(())
 }
 
 fn restore(state: &mut AppState, session: crate::session::SessionState) -> bool {
