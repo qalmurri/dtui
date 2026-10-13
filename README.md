@@ -1,19 +1,23 @@
-# DTUI session persistence update
+# DTUI app.rs refactor
 
-Replace these files in the existing `dtui` project:
+This patch splits the current `src/app.rs` into a directory module while preserving the existing `app::run(...)` call in `main.rs`.
 
-- `src/session.rs`
-- `src/app.rs`
-- `src/desktop/desktop.rs`
+## Files
 
-No Cargo dependency changes are required. The existing `serde`, `toml`, and `directories` dependencies are used.
+- `src/main.rs` — updated module entry, functionally same startup path.
+- `src/app/mod.rs` — shared `AppState` and input types.
+- `src/app/runtime.rs` — event loop.
+- `src/app/actions.rs` — keyboard action dispatch and window operations.
+- `src/app/workspace.rs` — workspace selection, CRUD, and name input.
+- `src/app/session.rs` — restore/save orchestration using the existing `crate::session::SessionState`.
 
-Then run from the project root:
+## Apply
+
+From the project root, extract this archive. Then remove the old `src/app.rs` because Rust cannot have both `src/app.rs` and `src/app/mod.rs` for the same module:
 
 ```bash
+rm src/app.rs
 cargo fmt && cargo check && cargo test
 ```
 
-Session state is saved on normal application exit to the DTUI configuration directory (`session.toml`). A first launch creates one `Terminal` window on workspace `MAIN`; later launches restore the saved windows instead of creating duplicates.
-
-The session tests use unique files under the system temporary directory and do not read or overwrite the user's real session file.
+The archive intentionally does not replace `src/session.rs`, `src/desktop/desktop.rs`, or `src/window_manager/manager.rs`.

@@ -38,7 +38,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             if config.lua.stop_on_error {
                 return Err(error);
             }
-
             eprintln!("DTUI Lua warning: {error}");
         }
     }
@@ -53,13 +52,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     enable_raw_mode()?;
     let _guard = TerminalGuard;
-
     execute!(io::stdout(), EnterAlternateScreen)?;
 
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     terminal.clear()?;
 
     app::run(&mut terminal, &config, saved_session)?;
-
     Ok(())
 }
