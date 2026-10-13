@@ -125,12 +125,35 @@ impl WindowManager {
 
         let y = (i32::from(geometry.y) + i32::from(dy)).clamp(0, i32::from(max_y)) as u16;
 
-        window.geometry = super::geometry::Geometry {
+        window.geometry = Geometry {
             x,
             y,
             width: geometry.width,
             height: geometry.height,
         };
+    }
+
+    pub fn resize_focused(
+        &mut self,
+        dw: i16,
+        dh: i16,
+        area_width: u16,
+        area_height: u16,
+        workspace_id: WorkspaceId,
+    ) {
+        let Some(id) = self.focus.window_id else {
+            return;
+        };
+
+        let Some(window) = self
+            .windows
+            .iter_mut()
+            .find(|window| window.id == id && window.workspace_id == workspace_id)
+        else {
+            return;
+        };
+
+        window.geometry = window.geometry.resize(dw, dh, area_width, area_height);
     }
 
     pub fn get(&self, id: u64) -> Option<&Window> {

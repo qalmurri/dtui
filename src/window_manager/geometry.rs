@@ -42,4 +42,27 @@ impl Geometry {
             height,
         }
     }
+
+    pub fn resize(self, dw: i16, dh: i16, area_width: u16, area_height: u16) -> Self {
+        let geometry = self.fit(area_width, area_height);
+
+        let available_width = area_width.saturating_sub(geometry.x);
+        let available_height = area_height.saturating_sub(geometry.y);
+
+        let min_width = 20.min(available_width);
+        let min_height = 5.min(available_height);
+
+        let width = (i32::from(geometry.width) + i32::from(dw))
+            .clamp(i32::from(min_width), i32::from(available_width)) as u16;
+
+        let height = (i32::from(geometry.height) + i32::from(dh))
+            .clamp(i32::from(min_height), i32::from(available_height)) as u16;
+
+        Self {
+            x: geometry.x,
+            y: geometry.y,
+            width,
+            height,
+        }
+    }
 }

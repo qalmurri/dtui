@@ -69,8 +69,8 @@ fn render_desktop(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         let window_area = Rect::new(
             area.x + geometry.x,
             area.y + geometry.y,
-            geometry.width.min(area.width.saturating_sub(geometry.x)),
-            geometry.height.min(area.height.saturating_sub(geometry.y)),
+            geometry.width,
+            geometry.height,
         );
 
         crate::ui::window::render(
@@ -90,17 +90,18 @@ fn render_help(frame: &mut Frame<'_>, area: Rect) {
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Line::raw(""),
-        Line::raw("q       Quit DTUI"),
-        Line::raw("?       Toggle shortcut help"),
-        Line::raw("Tab     Next window"),
-        Line::raw("H       Move window left"),
-        Line::raw("J       Move window down"),
-        Line::raw("K       Move window up"),
-        Line::raw("L       Move window right"),
-        Line::raw("n       New window"),
-        Line::raw("x       Close focused window"),
-        Line::raw("1       Workspace DEV"),
-        Line::raw("2       Workspace TOOLS"),
+        Line::raw("q           Quit DTUI"),
+        Line::raw("?           Toggle shortcut help"),
+        Line::raw("Tab         Next window"),
+        Line::raw("H/J/K/L     Move focused window"),
+        Line::raw("Alt + H     Decrease window width"),
+        Line::raw("Alt + L     Increase window width"),
+        Line::raw("Alt + K     Decrease window height"),
+        Line::raw("Alt + J     Increase window height"),
+        Line::raw("n           New window"),
+        Line::raw("x           Close focused window"),
+        Line::raw("1           Workspace DEV"),
+        Line::raw("2           Workspace TOOLS"),
         Line::raw(""),
         Line::raw("Press any key to return."),
     ];
@@ -115,7 +116,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let footer = Paragraph::new(Line::from(vec![
         Span::raw(" "),
         Span::raw(state.desktop.status.message.as_str()),
-        Span::raw(" | Tab: Focus | n: New | x: Close | ?: Help | q: Quit "),
+        Span::raw(" | HJKL: Move | Alt+HJKL: Resize | Tab: Focus | ?: Help | q: Quit "),
     ]));
 
     frame.render_widget(footer, area);

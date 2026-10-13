@@ -1,6 +1,6 @@
 use std::{error::Error, time::Duration};
 
-use crossterm::event::{Event, KeyCode, KeyEventKind};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 
 use crate::{
     Tui,
@@ -73,21 +73,46 @@ pub fn run(terminal: &mut Tui) -> Result<(), Box<dyn Error>> {
             .map(|workspace| workspace.id)
             .unwrap_or(WorkspaceId(0));
 
+        // Alt + H/J/K/L: resize the focused window.
+        if key.modifiers.contains(KeyModifiers::ALT) {
+            let resize = match key.code {
+                KeyCode::Char('h' | 'H') => Some((-1, 0)),
+                KeyCode::Char('j' | 'J') => Some((0, 1)),
+                KeyCode::Char('k' | 'K') => Some((0, -1)),
+                KeyCode::Char('l' | 'L') => Some((1, 0)),
+                _ => None,
+            };
+
+            if let Some((dw, dh)) = resize {
+                let terminal_size = terminal.size()?;
+
+                state.window_manager.resize_focused(
+                    dw,
+                    dh,
+                    terminal_size.width,
+                    terminal_size.height.saturating_sub(2),
+                    workspace_id,
+                );
+
+                continue;
+            }
+        }
+
         match key.code {
-            // Move the focused window using HJKL.
-            KeyCode::Char('h') | KeyCode::Char('H') => {
+            // H/J/K/L: move the focused window.
+            KeyCode::Char('h' | 'H') => {
                 move_focused_window(&mut state, terminal, -2, 0, workspace_id)?;
             }
 
-            KeyCode::Char('j') | KeyCode::Char('J') => {
+            KeyCode::Char('j' | 'J') => {
                 move_focused_window(&mut state, terminal, 0, 1, workspace_id)?;
             }
 
-            KeyCode::Char('k') | KeyCode::Char('K') => {
+            KeyCode::Char('k' | 'K') => {
                 move_focused_window(&mut state, terminal, 0, -1, workspace_id)?;
             }
 
-            KeyCode::Char('l') | KeyCode::Char('L') => {
+            KeyCode::Char('l' | 'L') => {
                 move_focused_window(&mut state, terminal, 2, 0, workspace_id)?;
             }
 
