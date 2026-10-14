@@ -1,4 +1,8 @@
+[![Rust](https://github.com/qalmurri/tuicli/actions/workflows/rust.yml/badge.svg)](https://github.com/qalmurri/tuicli/actions/workflows/rust.yml)
+
 # DTUI
+
+
 
 **DTUI** adalah proyek desktop berbasis terminal (*Text User
 Interface/TUI*) untuk Linux. Tujuannya adalah menyediakan lingkungan
