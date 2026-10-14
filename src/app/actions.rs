@@ -73,8 +73,14 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 workspace_id,
             );
 
-            state.terminals.spawn_for_window(id, geometry)?;
+            if let Err(error) = state.terminals.spawn_for_window(id, geometry) {
+                state.window_manager.close(id);
+                state.desktop.status.message = format!("Gagal membuat terminal: {error}");
+                return Ok(());
+            }
+
             state.terminal_input_mode = true;
+            state.desktop.status.message = "Terminal baru dibuat".into();
         }
 
         Action::Workspace1 => workspace::select_index(state, 0),
@@ -97,9 +103,13 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
     let size = terminal.size()?;
     let windows = state.window_manager.windows.clone();
 
-    let _ = state
-        .terminals
-        .resize_all(&windows, size.width, size.height.saturating_sub(1));
+    if let Err(error) =
+        state
+            .terminals
+            .resize_all(&windows, size.width, size.height.saturating_sub(1))
+    {
+        state.desktop.status.message = format!("Gagal resize terminal: {error}");
+    }
 
     Ok(())
 }

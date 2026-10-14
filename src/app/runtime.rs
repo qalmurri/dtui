@@ -26,10 +26,15 @@ pub fn run(
         terminal_size.width,
         desktop_height,
     )?;
+
     let windows = state.window_manager.windows.clone();
-    let _ = state
+
+    if let Err(error) = state
         .terminals
-        .resize_all(&windows, terminal_size.width, desktop_height);
+        .resize_all(&windows, terminal_size.width, desktop_height)
+    {
+        state.desktop.status.message = format!("Gagal resize terminal saat startup: {error}");
+    }
 
     let poll_interval = Duration::from_millis(config.runtime.poll_interval_ms);
 
@@ -53,9 +58,15 @@ pub fn run(
         let key = match event {
             Event::Resize(width, height) => {
                 let windows = state.window_manager.windows.clone();
-                let _ = state
-                    .terminals
-                    .resize_all(&windows, width, height.saturating_sub(1));
+
+                if let Err(error) =
+                    state
+                        .terminals
+                        .resize_all(&windows, width, height.saturating_sub(1))
+                {
+                    state.desktop.status.message = format!("Gagal resize terminal: {error}");
+                }
+
                 continue;
             }
             Event::Key(key) => key,
@@ -103,5 +114,6 @@ pub fn run(
 
     state.terminals.close_processes();
     session::save(&state)?;
+
     Ok(())
 }
