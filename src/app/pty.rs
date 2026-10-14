@@ -232,8 +232,7 @@ pub fn key_to_bytes(key: KeyEvent) -> Vec<u8> {
     let modifiers = key.modifiers;
 
     if modifiers.contains(KeyModifiers::CONTROL) {
-        match key.code {
-            KeyCode::Char(ch) => {
+if let KeyCode::Char(ch) = key.code {
                 let ch = ch.to_ascii_lowercase();
                 if ch.is_ascii_lowercase() {
                     return vec![ch as u8 - b'a' + 1];
@@ -247,8 +246,6 @@ pub fn key_to_bytes(key: KeyEvent) -> Vec<u8> {
                     '_' => vec![0x1f],
                     _ => ch.to_string().into_bytes(),
                 };
-            }
-            _ => {}
         }
     }
 
