@@ -18,7 +18,7 @@ pub fn run(
 ) -> Result<(), Box<dyn Error>> {
     let mut state = AppState::default();
     let terminal_size = terminal.size()?;
-    let desktop_height = terminal_size.height.saturating_sub(2);
+    let desktop_height = terminal_size.height.saturating_sub(1);
 
     session::restore_or_initialize(
         &mut state,
@@ -55,7 +55,7 @@ pub fn run(
                 let windows = state.window_manager.windows.clone();
                 let _ = state
                     .terminals
-                    .resize_all(&windows, width, height.saturating_sub(2));
+                    .resize_all(&windows, width, height.saturating_sub(1));
                 continue;
             }
             Event::Key(key) => key,

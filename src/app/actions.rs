@@ -35,7 +35,7 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 dw,
                 dh,
                 size.width,
-                size.height.saturating_sub(2),
+                size.height.saturating_sub(1),
                 workspace_id,
             );
         }
@@ -65,7 +65,7 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
                 .filter(|window| window.workspace_id == workspace_id)
                 .count();
 
-            let geometry = Geometry::cascade(count, size.width, size.height.saturating_sub(2));
+            let geometry = Geometry::cascade(count, size.width, size.height.saturating_sub(1));
 
             let id = state.window_manager.create(
                 format!("Terminal {}", count + 1),
@@ -99,7 +99,7 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
 
     let _ = state
         .terminals
-        .resize_all(&windows, size.width, size.height.saturating_sub(2));
+        .resize_all(&windows, size.width, size.height.saturating_sub(1));
 
     Ok(())
 }
@@ -117,7 +117,7 @@ fn move_focused_window(
         dx,
         dy,
         size.width,
-        size.height.saturating_sub(2),
+        size.height.saturating_sub(1),
         workspace_id,
     );
 

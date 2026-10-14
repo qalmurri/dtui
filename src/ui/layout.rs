@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
 };
@@ -11,8 +11,8 @@ use crate::{app::AppState, config::Config};
 pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
     let area = frame.area();
 
-    // Help is a full-screen view. Do not render the desktop,
-    // workspace header, or mode footer behind it.
+    // Help is a full-screen view. Do not render the desktop
+    // or workspace header behind it.
     if state.show_help {
         render_help(frame, area, config);
         return;
@@ -20,11 +20,7 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
 
     let sections = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Min(1),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Length(1), Constraint::Min(1)])
         .split(area);
 
     render_header(frame, sections[0], state);
@@ -45,12 +41,21 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
     } else {
         render_desktop(frame, sections[1], state);
     }
-
-    render_footer(frame, sections[2], state);
 }
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
-    let mut spans = Vec::new();
+    let mode = if state.terminal_input_mode {
+        " TERM "
+    } else {
+        " DESK "
+    };
+
+    let mode_style = Style::default()
+        .fg(Color::Black)
+        .bg(Color::White)
+        .add_modifier(Modifier::BOLD);
+
+    let mut spans = vec![Span::styled(mode, mode_style), Span::raw(" ")];
 
     for (index, workspace) in state.desktop.workspaces.iter().enumerate() {
         if index > 0 {
@@ -175,14 +180,13 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         area,
     );
 
-    // Clear the screen so no desktop content remains visible.
+    // Hide all desktop content while help is visible.
     frame.render_widget(ratatui::widgets::Clear, area);
 
     let block = Block::default().title(" Help ").borders(Borders::ALL);
-
     let inner = block.inner(popup_area);
-    frame.render_widget(block, popup_area);
 
+    frame.render_widget(block, popup_area);
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
@@ -194,16 +198,6 @@ fn shortcut(key: &str, description: &str) -> Line<'static> {
         ),
         Span::raw(description.to_owned()),
     ])
-}
-
-fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
-    let mode = if state.terminal_input_mode {
-        "Terminal mode"
-    } else {
-        "Desktop mode"
-    };
-
-    frame.render_widget(Paragraph::new(mode), area);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {

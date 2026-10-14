@@ -3,7 +3,7 @@ name = "tuicli"
 version = "0.1.1"
 edition = "2024"
 authors = ["qalmurri <blog.qalmurri@gmail.com>"]
-description = "A Rust-based TUI desktop environment designed specifically for headless Linux CLI systems (systems without a GUI). Its development focuses entirely on kernel-level stability, exceptional resource efficiency, ease of use, and reliable operation directly from the terminal, without reliance on heavy graphics servers"
+description = "A lightweight Rust-based TUI desktop environment for Linux CLI systems. Provides terminal window management, workspaces, and interactive shell sessions without requiring Xorg or Wayland"
 license = "MIT"
 repository = "https://github.com/qalmurri/tuicli"
 readme = "README.md"
@@ -19,3 +19,12 @@ directories = "6"
 mlua = { version = "0.11", features = ["lua54", "vendored"] }
 portable-pty = "0.9"
 vt100 = "0.16"
+
+[package.metadata.deb]
+section = "utils"
+priority = "optional"
+depends = ["libc6", "libgcc-s1"]
+assets = [
+    ["target/release/tuicli", "usr/bin/", "755"],
+    ["LICENSE", "usr/share/licenses/tuicli/", "644"],
+]
