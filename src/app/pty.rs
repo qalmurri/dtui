@@ -230,22 +230,24 @@ impl TerminalManager {
 
 pub fn key_to_bytes(key: KeyEvent) -> Vec<u8> {
     let modifiers = key.modifiers;
-    if modifiers.contains(KeyModifiers::CONTROL) {
-        if let KeyCode::Char(ch) = key.code {
-            let ch = ch.to_ascii_lowercase();
-            if ch.is_ascii_lowercase() {
-                return vec![ch as u8 - b'a' + 1];
-            }
-            return match ch {
-                '@' | ' ' => vec![0],
-                '[' => vec![0x1b],
-                '\\' => vec![0x1c],
-                ']' => vec![0x1d],
-                '^' => vec![0x1e],
-                '_' => vec![0x1f],
-                _ => ch.to_string().into_bytes(),
-            };
+    if modifiers.contains(KeyModifiers::CONTROL)
+        && let KeyCode::Char(ch) = key.code
+    {
+        let ch = ch.to_ascii_lowercase();
+
+        if ch.is_ascii_lowercase() {
+            return vec![ch as u8 - b'a' + 1];
         }
+
+        return match ch {
+            '@' | ' ' => vec![0],
+            '[' => vec![0x1b],
+            '\\' => vec![0x1c],
+            ']' => vec![0x1d],
+            '^' => vec![0x1e],
+            '_' => vec![0x1f],
+            _ => ch.to_string().into_bytes(),
+        };
     }
 
     let mut bytes = match key.code {
