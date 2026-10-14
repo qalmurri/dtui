@@ -1,25 +1,11 @@
-mod app;
-mod config;
-mod core;
-mod desktop;
-mod keybindings;
-mod scripting;
-mod session;
-mod ui;
-mod window_manager;
-
-use std::{
-    error::Error,
-    io::{self, Stdout},
-};
+use std::{error::Error, io};
 
 use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
-
-pub type Tui = Terminal<CrosstermBackend<Stdout>>;
+use tuicli::{app, config, scripting, session};
 
 struct TerminalGuard;
 

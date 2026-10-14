@@ -23,48 +23,51 @@ impl SessionState {
             return Ok(None);
         }
 
-        Self::load_from_path(&path).map(Some)
-    }
-
-    fn load_from_path(path: &Path) -> Result<Self, Box<dyn Error>> {
-        let contents = fs::read_to_string(path)?;
-        let session: Self = toml::from_str(&contents)?;
-
-        validation::validate(&session)?;
-
-        Ok(session)
+        load_from_path(&path).map(Some)
     }
 
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         let path = Self::path()?;
-        self.save_to_path(&path)
+        save_to_path(self, &path)
+    }
+}
+
+pub(super) fn load_from_path(path: &Path) -> Result<SessionState, Box<dyn Error>> {
+    let contents = fs::read_to_string(path)?;
+    let session: SessionState = toml::from_str(&contents)?;
+
+    validation::validate(&session)?;
+
+    Ok(session)
+}
+
+pub(super) fn save_to_path(session: &SessionState, path: &Path) -> Result<(), Box<dyn Error>> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
     }
 
-    fn save_to_path(&self, path: &Path) -> Result<(), Box<dyn Error>> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
+    let contents = toml::to_string_pretty(session)?;
+    let temporary = path.with_extension("toml.tmp");
 
-        let contents = toml::to_string_pretty(self)?;
-        let temporary = path.with_extension("toml.tmp");
+    fs::write(&temporary, contents)?;
+    fs::rename(temporary, path)?;
 
-        fs::write(&temporary, contents)?;
-        fs::rename(temporary, path)?;
-
-        Ok(())
-    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::session::state::SessionWindow;
     use std::{
         fs,
         path::PathBuf,
         sync::atomic::{AtomicU64, Ordering},
     };
 
-    use crate::{desktop::workspace::Workspace, window_manager::Geometry};
+    use crate::{
+        desktop::workspace::Workspace,
+        session::{SessionState, SessionWindow},
+        window_manager::Geometry,
+    };
 
     use super::*;
 
@@ -119,9 +122,8 @@ mod tests {
         let path = temporary_session_path();
         let expected = sample_session();
 
-        expected.save_to_path(&path).unwrap();
-
-        let actual = SessionState::load_from_path(&path).unwrap();
+        save_to_path(&expected, &path).unwrap();
+        let actual = load_from_path(&path).unwrap();
 
         assert_eq!(actual, expected);
         fs::remove_file(path).unwrap();
@@ -133,9 +135,9 @@ mod tests {
         let mut session = sample_session();
 
         session.active_workspace_id = 99;
-        session.save_to_path(&path).unwrap();
+        save_to_path(&session, &path).unwrap();
 
-        assert!(SessionState::load_from_path(&path).is_err());
+        assert!(load_from_path(&path).is_err());
 
         fs::remove_file(path).unwrap();
     }
@@ -146,9 +148,9 @@ mod tests {
         let mut session = sample_session();
 
         session.focused_window_id = Some(7);
-        session.save_to_path(&path).unwrap();
+        save_to_path(&session, &path).unwrap();
 
-        assert!(SessionState::load_from_path(&path).is_err());
+        assert!(load_from_path(&path).is_err());
 
         fs::remove_file(path).unwrap();
     }
