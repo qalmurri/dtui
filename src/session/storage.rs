@@ -10,7 +10,7 @@ use super::{SessionState, validation};
 
 impl SessionState {
     pub fn path() -> Result<PathBuf, Box<dyn Error>> {
-        let dirs = ProjectDirs::from("com", "qalmurri", "dtui")
+        let dirs = ProjectDirs::from("com", "qalmurri", "tuicli")
             .ok_or("Tidak dapat menentukan direktori konfigurasi")?;
 
         Ok(dirs.config_dir().join("session.toml"))
@@ -74,7 +74,7 @@ mod tests {
         let id = TEST_ID.fetch_add(1, Ordering::Relaxed);
 
         std::env::temp_dir().join(format!(
-            "dtui-session-test-{}-{id}.toml",
+            "tuicli-session-test-{}-{id}.toml",
             std::process::id()
         ))
     }

@@ -126,7 +126,7 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         Line::raw(""),
         shortcut(
             &bindings.quit,
-            "Quit DTUI (desktop mode; press F2 first in terminal mode)",
+            "Quit TUICLI (desktop mode; press F2 first in terminal mode)",
         ),
         shortcut(&bindings.help, "Toggle shortcut help"),
         shortcut(&bindings.focus_next, "Focus next window"),

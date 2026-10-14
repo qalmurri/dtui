@@ -17,10 +17,10 @@ fn ensure_init_script(path: &PathBuf) -> Result<(), Box<dyn Error>> {
         fs::create_dir_all(parent)?;
     }
 
-    let template = r#"-- DTUI initialization script.
+    let template = r#"-- TUICLI initialization script.
 -- This script runs when Lua scripting is enabled in config.toml.
 
-print("DTUI Lua runtime initialized")
+print("TUICLI Lua runtime initialized")
 "#;
 
     fs::write(path, template)?;

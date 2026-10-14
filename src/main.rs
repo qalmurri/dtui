@@ -40,13 +40,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             return Err(error);
         }
 
-        eprintln!("DTUI Lua warning: {error}");
+        eprintln!("TUICLI Lua warning: {error}");
     }
 
     let saved_session = match session::SessionState::load() {
         Ok(session) => session,
         Err(error) => {
-            eprintln!("DTUI: sesi tidak dapat dipulihkan: {error}");
+            eprintln!("TUICLI: sesi tidak dapat dipulihkan: {error}");
             None
         }
     };

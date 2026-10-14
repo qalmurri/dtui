@@ -4,7 +4,7 @@ use std::{collections::HashSet, error::Error};
 
 pub(super) fn validate(session: &SessionState) -> Result<(), Box<dyn Error>> {
     if session.workspaces.is_empty() {
-        return Err("Sesi DTUI tidak memiliki workspace".into());
+        return Err("Sesi TUICLI tidak memiliki workspace".into());
     }
 
     if session.workspaces.len() > MAX_WORKSPACES {

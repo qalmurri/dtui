@@ -74,7 +74,7 @@ pub struct Keybindings {
 impl Default for DesktopConfig {
     fn default() -> Self {
         Self {
-            title: "DTUI".into(),
+            title: "TUICLI".into(),
         }
     }
 }
@@ -137,14 +137,17 @@ impl Default for Keybindings {
 }
 
 pub fn config_dir() -> Result<PathBuf, Box<dyn Error>> {
-    let dirs = ProjectDirs::from("com", "qalmurri", "dtui").ok_or_else(|| {
+    let dirs = ProjectDirs::from("com", "qalmurri", "tuicli").ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::NotFound,
             "Tidak dapat menentukan direktori konfigurasi",
         )
     })?;
 
-    Ok(dirs.config_dir().to_path_buf())
+    let path = dirs.config_dir().to_path_buf();
+    eprintln!("tuicli config directory: {}", path.display());
+
+    Ok(path)
 }
 
 pub fn config_path() -> Result<PathBuf, Box<dyn Error>> {
@@ -188,4 +191,20 @@ pub fn load_or_create() -> Result<Config, Box<dyn Error>> {
     validate(&config.keybindings)?;
 
     Ok(config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_dir_uses_tuicli_path() {
+        let path = config_dir().expect("config directory should exist");
+
+        assert!(
+            path.ends_with("tuicli"),
+            "Unexpected config directory: {}",
+            path.display()
+        );
+    }
 }
