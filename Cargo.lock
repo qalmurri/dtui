@@ -360,20 +360,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
-name = "tuicli"
-version = "0.1.0"
-dependencies = [
- "crossterm",
- "directories",
- "mlua",
- "portable-pty",
- "ratatui",
- "serde",
- "toml",
- "vt100",
-]
-
-[[package]]
 name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1740,6 +1726,20 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
+
+[[package]]
+name = "tuicli"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "directories",
+ "mlua",
+ "portable-pty",
+ "ratatui",
+ "serde",
+ "toml",
+ "vt100",
+]
 
 [[package]]
 name = "typenum"
