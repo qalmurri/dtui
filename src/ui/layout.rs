@@ -242,7 +242,7 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
 
-        let state = AppState {
+        let mut state = AppState {
             window_manager: WindowManager::default(),
             ..AppState::default()
         };
@@ -276,7 +276,7 @@ mod tests {
         let backend = TestBackend::new(60, 20);
         let mut terminal = Terminal::new(backend).unwrap();
 
-        let state = AppState {
+        let mut state = AppState {
             window_manager: WindowManager::default(),
             ..AppState::default()
         };
