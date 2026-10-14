@@ -33,7 +33,9 @@ pub enum Action {
     WorkspaceDelete,
 }
 
-const ACTIONS: &[(&str, fn(&Keybindings) -> &str, Action)] = &[
+type ActionBinding = (&'static str, fn(&Keybindings) -> &str, Action);
+
+const ACTIONS: &[ActionBinding] = &[
     ("quit", |b| &b.quit, Action::Quit),
     ("help", |b| &b.help, Action::Help),
     ("move_left", |b| &b.move_left, Action::MoveLeft),
