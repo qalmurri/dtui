@@ -33,13 +33,14 @@ impl Drop for TerminalGuard {
 fn main() -> Result<(), Box<dyn Error>> {
     let config = config::load_or_create()?;
 
-    if config.lua.enabled {
-        if let Err(error) = scripting::lua_runtime::run_init(&config) {
-            if config.lua.stop_on_error {
-                return Err(error);
-            }
-            eprintln!("DTUI Lua warning: {error}");
+    if config.lua.enabled
+        && let Err(error) = scripting::lua_runtime::run_init(&config)
+    {
+        if config.lua.stop_on_error {
+            return Err(error);
         }
+
+        eprintln!("DTUI Lua warning: {error}");
     }
 
     let saved_session = match session::SessionState::load() {
