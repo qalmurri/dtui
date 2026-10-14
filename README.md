@@ -1,6 +1,10 @@
 # tuicli
 
 [![Rust](https://github.com/qalmurri/tuicli/actions/workflows/rust.yml/badge.svg)](https://github.com/qalmurri/tuicli/actions/workflows/rust.yml)
+[![Dependabot Updates](https://github.com/qalmurri/tuicli/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/qalmurri/tuicli/actions/workflows/dependabot/dependabot-updates)
+[![Documentation](https://github.com/qalmurri/tuicli/actions/workflows/docs.yml/badge.svg)](https://github.com/qalmurri/tuicli/actions/workflows/docs.yml)
+[![Release](https://github.com/qalmurri/tuicli/actions/workflows/release.yml/badge.svg)](https://github.com/qalmurri/tuicli/actions/workflows/release.yml)
+[![Security Audit](https://github.com/qalmurri/tuicli/actions/workflows/security.yml/badge.svg)](https://github.com/qalmurri/tuicli/actions/workflows/security.yml)
 
 **tuicli** is a lightweight, terminal-based desktop environment for Linux, designed to provide a structured CLI workspace without a graphical desktop environment.
 
