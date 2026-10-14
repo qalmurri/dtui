@@ -3,7 +3,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fs, io, path::PathBuf};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub desktop: DesktopConfig,
@@ -69,17 +69,6 @@ pub struct Keybindings {
     pub workspace_create: String,
     pub workspace_rename: String,
     pub workspace_delete: String,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            desktop: DesktopConfig::default(),
-            runtime: RuntimeConfig::default(),
-            lua: LuaConfig::default(),
-            keybindings: Keybindings::default(),
-        }
-    }
 }
 
 impl Default for DesktopConfig {
