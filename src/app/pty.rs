@@ -230,9 +230,8 @@ impl TerminalManager {
 
 pub fn key_to_bytes(key: KeyEvent) -> Vec<u8> {
     let modifiers = key.modifiers;
-
     if modifiers.contains(KeyModifiers::CONTROL) {
-  if let KeyCode::Char(ch) = key.code {
+        if let KeyCode::Char(ch) = key.code {
             let ch = ch.to_ascii_lowercase();
             if ch.is_ascii_lowercase() {
                 return vec![ch as u8 - b'a' + 1];
