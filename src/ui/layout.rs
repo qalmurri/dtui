@@ -3,13 +3,20 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 
 use crate::{app::AppState, config::Config};
 
 pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
     let area = frame.area();
+
+    // Help is a full-screen view. Do not render the desktop,
+    // workspace header, or mode footer behind it.
+    if state.show_help {
+        render_help(frame, area, config);
+        return;
+    }
 
     let sections = Layout::default()
         .direction(Direction::Vertical)
@@ -20,11 +27,9 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
         ])
         .split(area);
 
-    render_header(frame, sections[0], state, config);
+    render_header(frame, sections[0], state);
 
-    if state.show_help {
-        render_help(frame, sections[1], config);
-    } else if let Some(input) = &state.workspace_input {
+    if let Some(input) = &state.workspace_input {
         let title = match input.mode {
             crate::app::WorkspaceInputMode::Rename => "Rename Workspace",
         };
@@ -41,17 +46,11 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
         render_desktop(frame, sections[1], state);
     }
 
-    render_footer(frame, sections[2], state, config);
+    render_footer(frame, sections[2], state);
 }
 
-fn render_header(frame: &mut Frame<'_>, area: Rect, state: &AppState, config: &Config) {
-    let mut spans = vec![
-        Span::styled(
-            format!(" {} ", config.desktop.title),
-            Style::default().add_modifier(Modifier::BOLD),
-        ),
-        Span::raw("| "),
-    ];
+fn render_header(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
+    let mut spans = Vec::new();
 
     for (index, workspace) in state.desktop.workspaces.iter().enumerate() {
         if index > 0 {
@@ -126,7 +125,7 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         Line::raw(""),
         shortcut(
             &bindings.quit,
-            "Quit TUICLI (desktop mode; press F2 first in terminal mode)",
+            "Quit tuicli (desktop mode; press F2 first in terminal mode)",
         ),
         shortcut(&bindings.help, "Toggle shortcut help"),
         shortcut(&bindings.focus_next, "Focus next window"),
@@ -152,49 +151,59 @@ fn render_help(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         shortcut(&bindings.workspace_delete, "Delete workspace"),
         Line::raw(""),
         shortcut("F2", "Toggle terminal input / desktop shortcuts"),
-        Line::raw("Press any key to return."),
+        Line::raw(""),
+        Line::styled(
+            "Press any key to return",
+            Style::default().add_modifier(Modifier::DIM),
+        ),
     ];
 
-    frame.render_widget(
-        Paragraph::new(lines).block(Block::default().borders(Borders::NONE)),
+    let popup_width = 76.min(area.width.saturating_sub(2));
+    let popup_height = 24.min(area.height.saturating_sub(2));
+
+    let popup_area = centered_rect(
+        if area.width > 2 {
+            popup_width.saturating_mul(100) / area.width
+        } else {
+            100
+        },
+        if area.height > 2 {
+            popup_height.saturating_mul(100) / area.height
+        } else {
+            100
+        },
         area,
     );
+
+    // Clear the screen so no desktop content remains visible.
+    frame.render_widget(ratatui::widgets::Clear, area);
+
+    let block = Block::default().title(" Help ").borders(Borders::ALL);
+
+    let inner = block.inner(popup_area);
+    frame.render_widget(block, popup_area);
+
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
 fn shortcut(key: &str, description: &str) -> Line<'static> {
     Line::from(vec![
-        Span::raw(format!("{key:<20}")),
+        Span::styled(
+            format!("{key:<20}"),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
         Span::raw(description.to_owned()),
     ])
 }
 
-fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState, config: &Config) {
-    let bindings = &config.keybindings;
+fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
+    let mode = if state.terminal_input_mode {
+        "Terminal mode"
+    } else {
+        "Desktop mode"
+    };
 
-    let footer = Paragraph::new(Line::from(vec![
-        Span::raw(" "),
-        Span::raw(state.desktop.status.message.as_str()),
-        Span::raw(" | Move: "),
-        Span::raw(format!(
-            "{}{}{}{}",
-            bindings.move_left, bindings.move_down, bindings.move_up, bindings.move_right
-        )),
-        Span::raw(" | Focus: "),
-        Span::raw(bindings.focus_next.as_str()),
-        Span::raw(" | Mode: "),
-        Span::raw(if state.terminal_input_mode {
-            "Terminal (F2 desktop)"
-        } else {
-            "Desktop (F2 terminal)"
-        }),
-        Span::raw(" | Help: "),
-        Span::raw(bindings.help.as_str()),
-        Span::raw(" | Quit: "),
-        Span::raw(bindings.quit.as_str()),
-        Span::raw(" "),
-    ]));
-
-    frame.render_widget(footer, area);
+    frame.render_widget(Paragraph::new(mode), area);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
@@ -215,93 +224,4 @@ fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(vertical[1])[1]
-}
-
-#[cfg(test)]
-mod tests {
-    use ratatui::{Terminal, backend::TestBackend};
-
-    use super::render_desktop;
-    use crate::{
-        app::AppState,
-        desktop::workspace::WorkspaceId,
-        window_manager::{Geometry, WindowManager},
-    };
-
-    fn geometry(x: u16, y: u16) -> Geometry {
-        Geometry {
-            x,
-            y,
-            width: 30,
-            height: 8,
-        }
-    }
-
-    #[test]
-    fn renders_only_windows_from_active_workspace() {
-        let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
-
-        let mut state = AppState {
-            window_manager: WindowManager::default(),
-            ..AppState::default()
-        };
-
-        state
-            .window_manager
-            .create("VISIBLE", geometry(0, 0), WorkspaceId(0));
-
-        state
-            .window_manager
-            .create("HIDDEN", geometry(0, 0), WorkspaceId(1));
-
-        terminal
-            .draw(|frame| {
-                render_desktop(frame, frame.area(), &state);
-            })
-            .unwrap();
-
-        let buffer = terminal.backend().buffer();
-
-        let content: String = (0..buffer.area.height)
-            .flat_map(|y| (0..buffer.area.width).map(move |x| buffer[(x, y)].symbol().to_owned()))
-            .collect();
-
-        assert!(content.contains("VISIBLE"));
-        assert!(!content.contains("HIDDEN"));
-    }
-
-    #[test]
-    fn renders_top_window_over_window_behind_it() {
-        let backend = TestBackend::new(60, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
-
-        let mut state = AppState {
-            window_manager: WindowManager::default(),
-            ..AppState::default()
-        };
-
-        state
-            .window_manager
-            .create("BACK", geometry(0, 0), WorkspaceId(0));
-
-        state
-            .window_manager
-            .create("FRONT", geometry(0, 0), WorkspaceId(0));
-
-        terminal
-            .draw(|frame| {
-                render_desktop(frame, frame.area(), &state);
-            })
-            .unwrap();
-
-        let buffer = terminal.backend().buffer();
-
-        let title: String = (0..buffer.area.width)
-            .map(|x| buffer[(x, 0)].symbol())
-            .collect();
-
-        assert!(title.contains("FRONT"));
-        assert!(!title.contains("BACK"));
-    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "tuicli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["qalmurri <blog.qalmurri@gmail.com>"]
 description = "A Rust-based TUI desktop environment designed specifically for headless Linux CLI systems (systems without a GUI). Its development focuses entirely on kernel-level stability, exceptional resource efficiency, ease of use, and reliable operation directly from the terminal, without reliance on heavy graphics servers"
