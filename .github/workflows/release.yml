@@ -1,0 +1,60 @@
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: Build Linux Release
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          mkdir -p dist/package
+
+          cp target/release/tuicli \
+            dist/tuicli-linux-x86_64
+
+          cp target/release/tuicli \
+            dist/package/tuicli
+
+          tar -C dist/package \
+            -czf dist/tuicli-linux-x86_64.tar.gz tuicli
+
+          cd dist
+          sha256sum \
+            tuicli-linux-x86_64 \
+            tuicli-linux-x86_64.tar.gz \
+            > SHA256SUMS
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/tuicli-linux-x86_64
+            dist/tuicli-linux-x86_64.tar.gz
+            dist/SHA256SUMS
