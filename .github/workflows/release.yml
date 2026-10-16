@@ -30,6 +30,11 @@ jobs:
       - name: Build release
         run: cargo build --release --locked
 
+      - name: Build Debian package
+        run: |
+          cargo install cargo-deb --locked
+          cargo deb --no-build --locked
+
       - name: Prepare release assets
         shell: bash
         run: |
@@ -41,6 +46,8 @@ jobs:
           cp target/release/tuicli \
             dist/package/tuicli
 
+          cp target/debian/tuicli_*_amd64.deb dist/
+
           tar -C dist/package \
             -czf dist/tuicli-linux-x86_64.tar.gz tuicli
 
@@ -48,6 +55,7 @@ jobs:
           sha256sum \
             tuicli-linux-x86_64 \
             tuicli-linux-x86_64.tar.gz \
+            tuicli_*_amd64.deb \
             > SHA256SUMS
 
       - name: Publish GitHub Release
@@ -57,4 +65,12 @@ jobs:
           files: |
             dist/tuicli-linux-x86_64
             dist/tuicli-linux-x86_64.tar.gz
+            dist/tuicli_*_amd64.deb
             dist/SHA256SUMS
+
+      - name: Upload Debian package for APT repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: tuicli-deb
+          path: dist/tuicli_*_amd64.deb
+          if-no-files-found: error

@@ -24,7 +24,7 @@ libc = "0.2"
 [package.metadata.deb]
 section = "utils"
 priority = "optional"
-depends = ["libc6", "libgcc-s1"]
+depends = ["libc6 (>= 2.35)", "libgcc-s1"]
 assets = [
     ["target/release/tuicli", "usr/bin/", "755"],
     ["LICENSE", "usr/share/licenses/tuicli/", "644"],

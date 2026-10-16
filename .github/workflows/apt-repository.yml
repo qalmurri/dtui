@@ -1,0 +1,99 @@
+name: APT repository
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: apt-pages
+  cancel-in-progress: false
+
+jobs:
+  build-repository:
+    if: ${{ vars.ENABLE_APT_REPOSITORY == 'true' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Debian package
+        run: |
+          cargo install cargo-deb --locked
+          cargo deb --locked
+
+      - name: Create signed APT repository
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$APT_GPG_PRIVATE_KEY" || { echo "Missing APT_GPG_PRIVATE_KEY" >&2; exit 1; }
+          sudo apt-get update
+          sudo apt-get install --yes apt-utils dpkg-dev gnupg
+
+          export GNUPGHOME="$RUNNER_TEMP/tuicli-gnupg"
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+
+          fingerprint="$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test -n "$fingerprint"
+
+          mkdir -p public/pool/main/t/tuicli public/dists/stable/main/binary-amd64
+          cp target/debian/tuicli_*_amd64.deb public/pool/main/t/tuicli/
+          gpg --batch --export "$fingerprint" > public/tuicli-archive-keyring.gpg
+
+          cd public
+          dpkg-scanpackages --arch amd64 pool /dev/null \
+            > dists/stable/main/binary-amd64/Packages
+          gzip -9c dists/stable/main/binary-amd64/Packages \
+            > dists/stable/main/binary-amd64/Packages.gz
+
+          apt-ftparchive \
+            -o APT::FTPArchive::Release::Origin="tuicli" \
+            -o APT::FTPArchive::Release::Label="tuicli" \
+            -o APT::FTPArchive::Release::Suite="stable" \
+            -o APT::FTPArchive::Release::Codename="stable" \
+            -o APT::FTPArchive::Release::Architectures="amd64" \
+            -o APT::FTPArchive::Release::Components="main" \
+            release dists/stable > dists/stable/Release
+
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "$APT_GPG_PASSPHRASE" --local-user "$fingerprint" \
+            --clearsign --output dists/stable/InRelease dists/stable/Release
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "$APT_GPG_PASSPHRASE" --local-user "$fingerprint" \
+            --armor --detach-sign --output dists/stable/Release.gpg dists/stable/Release
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    if: ${{ vars.ENABLE_APT_REPOSITORY == 'true' }}
+    needs: build-repository
+    runs-on: ubuntu-22.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy APT repository to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

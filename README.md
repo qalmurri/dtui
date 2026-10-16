@@ -21,6 +21,24 @@ Built with Rust, tuicli focuses on stability, efficiency, and simplicity.
 
 ## Installation
 
+### Debian / Ubuntu (APT)
+
+The APT repository provides 64-bit x86 (`amd64`) packages for Debian 12+ and Ubuntu 22.04+. Once the repository is published, add its signing key and package source, then install tuicli:
+
+```bash
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://qalmurri.github.io/tuicli/tuicli-archive-keyring.gpg \
+  | sudo tee /etc/apt/keyrings/tuicli.gpg >/dev/null
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/tuicli.gpg] https://qalmurri.github.io/tuicli stable main" \
+  | sudo tee /etc/apt/sources.list.d/tuicli.list
+sudo apt update
+sudo apt install tuicli
+```
+
+Repository publishing setup for maintainers is documented in [docs/apt-repository.md](docs/apt-repository.md).
+
+### Cargo
+
 Install from [crates.io](https://crates.io/crates/tuicli):
 
 ```bash
