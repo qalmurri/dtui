@@ -10,7 +10,7 @@ pub struct Config {
     pub keybindings: Keybindings,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DesktopConfig {
     /// Local time format using `strftime` codes; empty displays the Unix timestamp.
@@ -64,14 +64,6 @@ pub struct Keybindings {
     pub workspace_create: String,
     pub workspace_rename: String,
     pub workspace_delete: String,
-}
-
-impl Default for DesktopConfig {
-    fn default() -> Self {
-        Self {
-            time_format: String::new(),
-        }
-    }
 }
 
 impl Default for RuntimeConfig {
