@@ -17,8 +17,10 @@ infrastructure ─────────────────────�
 - `domain/` contains desktop, workspace, window, geometry, and session state. It has no dependency on application orchestration, terminal UI, or infrastructure.
 - `application/` contains app state, actions, settings, and use cases. It depends on domain state and defines outbound contracts in `ports.rs`.
 - `presentation/` owns terminal event handling, shortcut resolution, input conversion, rendering, and UI. It translates TUI events into application calls and renders application/domain state.
-- `infrastructure/` implements terminal process and session persistence ports, loads application settings, and hosts scripting integrations.
+- `infrastructure/` implements terminal process and session persistence ports and loads application settings.
 - `main.rs` is the composition root: it loads configuration/session adapters, creates the terminal backend, and injects those implementations into presentation.
+
+Keybinding defaults live in application settings. Infrastructure loads the optional `[keybindings]` section from `config.toml` over those defaults, so unspecified shortcuts retain their built-in values.
 
 ## Dependency rules
 

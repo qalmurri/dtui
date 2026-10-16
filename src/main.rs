@@ -15,7 +15,7 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use tuicli::{
     application::ports::SessionRepository,
-    infrastructure::{config, pty::TerminalManager, scripting, session},
+    infrastructure::{config, pty::TerminalManager, session},
     presentation,
 };
 
@@ -40,16 +40,6 @@ impl Drop for TerminalGuard {
 fn main() -> Result<(), Box<dyn Error>> {
     let config = config::load_or_create()?;
     tuicli::presentation::controller::keybindings::validate(&config.keybindings)?;
-
-    if config.lua.enabled
-        && let Err(error) = scripting::lua_runtime::run_init(&config)
-    {
-        if config.lua.stop_on_error {
-            return Err(error);
-        }
-
-        eprintln!("TUICLI Lua warning: {error}");
-    }
 
     let session_repository = session::FileSessionRepository;
     let (saved_session, persist_session) = match session_repository.load() {

@@ -31,6 +31,15 @@ time_format = "%H:%M:%S"
 
 The format uses the system's local timezone. If `time_format` is empty or omitted, tuicli displays the raw Unix timestamp in seconds. Existing configuration files without this setting continue to work and use the timestamp fallback.
 
+Keyboard shortcuts are configured in the `[keybindings]` section of the same `~/.config/tuicli/config.toml` file. Defaults are built into tuicli; add only the shortcuts you want to change. For example, to bind quit to Escape while retaining all other defaults:
+
+```toml
+[keybindings]
+quit = "escape"
+```
+
+Defaults are applied automatically for any shortcut omitted from `[keybindings]`.
+
 ## Installation
 
 ### Debian / Ubuntu (APT)

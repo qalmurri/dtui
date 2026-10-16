@@ -5,9 +5,8 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub desktop: DesktopConfig,
     pub runtime: RuntimeConfig,
-    pub lua: LuaConfig,
 
-    #[serde(skip)]
+    #[serde(default, skip_serializing)]
     pub keybindings: Keybindings,
 }
 
@@ -23,14 +22,6 @@ pub struct DesktopConfig {
 #[serde(default)]
 pub struct RuntimeConfig {
     pub poll_interval_ms: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct LuaConfig {
-    pub enabled: bool,
-    pub init_script: String,
-    pub stop_on_error: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,16 +79,6 @@ impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
             poll_interval_ms: 16,
-        }
-    }
-}
-
-impl Default for LuaConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            init_script: "init.lua".into(),
-            stop_on_error: false,
         }
     }
 }
