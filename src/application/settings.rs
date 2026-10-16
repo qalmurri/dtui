@@ -69,7 +69,7 @@ pub struct Keybindings {
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
-            poll_interval_ms: 16,
+            poll_interval_ms: 33,
         }
     }
 }

@@ -35,7 +35,11 @@ pub(super) fn render(
         ));
     }
     let time = system_time_label(&config.desktop.time_format);
-    let time_width = time
+    let cpu_frequency = state
+        .cpu_frequency_ghz
+        .map_or_else(|| "-- GHz".to_owned(), |ghz| format!("{ghz:.2} GHz"));
+    let right_label = format!("{cpu_frequency}  {time}");
+    let time_width = right_label
         .chars()
         .count()
         .min(usize::from(mode_status_area.width)) as u16;
@@ -46,7 +50,7 @@ pub(super) fn render(
 
     frame.render_widget(Paragraph::new(Line::from(status_spans)), columns[0]);
     frame.render_widget(
-        Paragraph::new(time)
+        Paragraph::new(right_label)
             .alignment(Alignment::Right)
             .style(Style::default().fg(Color::Gray)),
         columns[1],

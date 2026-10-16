@@ -19,6 +19,7 @@ use crate::{
 pub fn run(
     terminal: &mut Tui,
     config: &Config,
+    keymap: &controller::keybindings::Keymap,
     saved_session: Option<SessionState>,
     persist_session: bool,
     terminal_backend: Box<dyn TerminalBackend>,
@@ -41,20 +42,38 @@ pub fn run(
         state.desktop.status.message = format!("Gagal resize terminal saat startup: {error}");
     }
 
-    let poll_interval = Duration::from_millis(config.runtime.poll_interval_ms.max(16));
-    while state.running {
-        state.terminals.poll();
+    let poll_interval = Duration::from_millis(config.runtime.poll_interval_ms);
+    let mut redraw = true;
+    let mut last_clock_second = unix_second();
+    state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
+    while state.running && !crate::infrastructure::signals::shutdown_requested() {
+        redraw |= state.terminals.poll();
 
-        for window_id in state.terminals.exited_window_ids() {
+        let exited = state.terminals.exited_window_ids();
+        for window_id in exited.iter().copied() {
             state.terminals.remove(window_id);
             state.window_manager.close(window_id);
         }
+        redraw |= !exited.is_empty();
 
-        terminal.draw(|frame| {
-            renderer::render(frame, &state, config);
-        })?;
+        let clock_second = unix_second();
+        if clock_second != last_clock_second {
+            last_clock_second = clock_second;
+            state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
+            redraw = true;
+        }
 
-        let Some(event) = event_runtime::poll(poll_interval)? else {
+        if redraw {
+            terminal.draw(|frame| renderer::render(frame, &state, config))?;
+            redraw = false;
+        }
+
+        let event = match event_runtime::poll(poll_interval) {
+            Ok(event) => event,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error.into()),
+        };
+        let Some(event) = event else {
             continue;
         };
 
@@ -71,6 +90,7 @@ pub fn run(
                     state.desktop.status.message = format!("Gagal resize terminal: {error}");
                 }
 
+                redraw = true;
                 continue;
             }
 
@@ -92,6 +112,7 @@ pub fn run(
                     _ => application::WorkspaceInputKey::Other,
                 };
                 application::handle_workspace_input(&mut state, input);
+                redraw = true;
             }
 
             continue;
@@ -100,13 +121,14 @@ pub fn run(
         if state.show_help {
             if key.kind == KeyEventKind::Press {
                 state.show_help = false;
+                redraw = true;
             }
 
             continue;
         }
 
         if key.kind == KeyEventKind::Press
-            && controller::keybindings::resolve(key, &config.keybindings)
+            && controller::keybindings::resolve(key, keymap)
                 == Some(application::action::Action::ToggleMode)
         {
             let size = terminal.size()?;
@@ -117,6 +139,7 @@ pub fn run(
                 desktop_width,
                 desktop_height,
             )?;
+            redraw = true;
             continue;
         }
 
@@ -127,19 +150,25 @@ pub fn run(
                 && let Some(window_id) = state.window_manager.focus.window_id
             {
                 let input = controller::terminal_input::key_to_bytes(key);
-                state.terminals.write_input(window_id, &input)?;
+                if let Err(error) = state.terminals.write_input(window_id, &input) {
+                    state.terminals.remove(window_id);
+                    state.window_manager.close(window_id);
+                    state.desktop.status.message = format!("Sesi terminal berhenti: {error}");
+                    redraw = true;
+                }
             }
 
             continue;
         }
 
-        let Some(action) = controller::input::resolve(key, &config.keybindings) else {
+        let Some(action) = controller::input::resolve(key, keymap) else {
             continue;
         };
 
         let size = terminal.size()?;
         let (desktop_width, desktop_height) = layout::desktop_size(size.width, size.height);
         application::handle(&mut state, action, desktop_width, desktop_height)?;
+        redraw = true;
     }
 
     state.terminals.close_processes();
@@ -149,4 +178,10 @@ pub fn run(
     }
 
     Ok(())
+}
+
+fn unix_second() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs())
 }

@@ -22,6 +22,7 @@ type PtyMaster = Box<dyn MasterPty + Send>;
 
 const READER_POLL_TIMEOUT_MS: i32 = 100;
 const OUTPUT_QUEUE_CHUNKS: usize = 32;
+pub const MANAGED_SHELL_ENV: &str = "TUICLI_MANAGED_SHELL";
 
 pub struct PtySession {
     parser: Parser,
@@ -51,6 +52,7 @@ impl PtySession {
         let shell = resolve_shell();
 
         let mut command = CommandBuilder::new(shell);
+        command.env(MANAGED_SHELL_ENV, "1");
         command.env("TERM", "xterm-256color");
         // The emulated child terminal promises xterm's 256-color profile. Do not
         // advertise truecolor separately: the outer Linux console may not support it.
@@ -138,7 +140,7 @@ impl PtySession {
         });
 
         Ok(Self {
-            parser: Parser::new(rows, cols, 10_000),
+            parser: Parser::new(rows, cols, 0),
             writer,
             master: pair.master,
             child,
@@ -150,10 +152,14 @@ impl PtySession {
         })
     }
 
-    fn drain_output(&mut self) {
+    fn drain_output(&mut self) -> bool {
+        let mut changed = false;
         loop {
             match self.output.try_recv() {
-                Ok(bytes) => self.parser.process(&bytes),
+                Ok(bytes) => {
+                    self.parser.process(&bytes);
+                    changed = true;
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
                     self.output_closed = true;
@@ -161,14 +167,18 @@ impl PtySession {
                 }
             }
         }
+        changed
     }
 
-    fn poll_output(&mut self) {
-        self.drain_output();
+    fn poll_output(&mut self) -> bool {
+        let mut changed = self.drain_output();
 
         if !self.exited {
             match self.child.try_wait() {
-                Ok(Some(_status)) => self.exited = true,
+                Ok(Some(_status)) => {
+                    self.exited = true;
+                    changed = true;
+                }
                 Ok(None) => {}
                 Err(error) => {
                     eprintln!("TUICLI: gagal memeriksa status shell: {error}");
@@ -182,6 +192,7 @@ impl PtySession {
         {
             eprintln!("TUICLI: reader thread terminal mengalami panic");
         }
+        changed
     }
 
     fn write(&mut self, bytes: &[u8]) -> io::Result<()> {
@@ -389,10 +400,12 @@ impl TerminalManager {
         self.sessions.remove(&window_id);
     }
 
-    pub fn poll(&mut self) {
+    pub fn poll(&mut self) -> bool {
+        let mut changed = false;
         for session in self.sessions.values_mut() {
-            session.poll_output();
+            changed |= session.poll_output();
         }
+        changed
     }
 
     pub fn screen(&self, window_id: u64) -> Option<&Screen> {
@@ -494,7 +507,7 @@ impl TerminalBackend for TerminalManager {
         TerminalManager::remove(self, window_id)
     }
 
-    fn poll(&mut self) {
+    fn poll(&mut self) -> bool {
         TerminalManager::poll(self)
     }
 

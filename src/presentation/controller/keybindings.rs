@@ -59,6 +59,56 @@ const ACTIONS: &[ActionBinding] = &[
     ),
 ];
 
+/// Parsed once during startup so resolving each input event does not parse or
+/// allocate every configured shortcut again.
+#[derive(Debug, Clone)]
+pub struct Keymap {
+    entries: Vec<(KeyCode, KeyModifiers, Action)>,
+}
+
+impl Keymap {
+    pub fn compile(bindings: &Keybindings) -> Result<Self, Box<dyn Error>> {
+        let mut entries: Vec<(KeyCode, KeyModifiers, Action)> = Vec::with_capacity(ACTIONS.len());
+
+        for (name, get_binding, action) in ACTIONS {
+            let value = get_binding(bindings);
+            let parsed = parse_key(value)
+                .map_err(|error| format!("Keybinding '{name}' tidak valid: {error}"))?;
+
+            if let Some((_, _, previous_action)) = entries
+                .iter()
+                .find(|(code, modifiers, _)| (*code, *modifiers) == parsed)
+            {
+                let previous = ACTIONS
+                    .iter()
+                    .find(|(_, _, candidate)| candidate == previous_action)
+                    .map(|(previous, _, _)| *previous)
+                    .unwrap_or("unknown");
+                return Err(
+                    format!("Binding '{value}' bentrok antara '{previous}' dan '{name}'").into(),
+                );
+            }
+
+            entries.push((parsed.0, parsed.1, *action));
+        }
+
+        Ok(Self { entries })
+    }
+
+    pub fn resolve(&self, key: KeyEvent) -> Option<Action> {
+        let code = match key.code {
+            KeyCode::Char(ch) if ch.is_ascii_alphabetic() => KeyCode::Char(ch.to_ascii_lowercase()),
+            code => code,
+        };
+        let modifiers = relevant_modifiers(key.modifiers);
+        self.entries
+            .iter()
+            .find_map(|(candidate, required, action)| {
+                (*candidate == code && *required == modifiers).then_some(*action)
+            })
+    }
+}
+
 pub fn parse_key(value: &str) -> Result<(KeyCode, KeyModifiers), String> {
     let value = value.trim().to_lowercase();
     let mut modifiers = KeyModifiers::NONE;
@@ -123,33 +173,11 @@ pub fn parse_key(value: &str) -> Result<(KeyCode, KeyModifiers), String> {
 }
 
 pub fn validate(bindings: &Keybindings) -> Result<(), Box<dyn Error>> {
-    let mut seen: Vec<((KeyCode, KeyModifiers), &str)> = Vec::new();
-
-    for (name, get_binding, _) in ACTIONS {
-        let value = get_binding(bindings);
-
-        let parsed = parse_key(value)
-            .map_err(|error| format!("Keybinding '{name}' tidak valid: {error}"))?;
-
-        if let Some((_, previous)) = seen.iter().find(|(key, _)| key == &parsed) {
-            return Err(
-                format!("Binding '{value}' bentrok antara '{previous}' dan '{name}'").into(),
-            );
-        }
-
-        seen.push((parsed, name));
-    }
-
-    Ok(())
+    Keymap::compile(bindings).map(|_| ())
 }
 
-pub fn resolve(key: KeyEvent, bindings: &Keybindings) -> Option<Action> {
-    let event_modifiers = relevant_modifiers(key.modifiers);
-    ACTIONS.iter().find_map(|(_, get_binding, action)| {
-        let (code, modifiers) = parse_key(get_binding(bindings)).ok()?;
-
-        (key.code == code && event_modifiers == modifiers).then_some(*action)
-    })
+pub fn resolve(key: KeyEvent, keymap: &Keymap) -> Option<Action> {
+    keymap.resolve(key)
 }
 
 /// Ignore lock-state flags that terminals may attach to otherwise identical keys.

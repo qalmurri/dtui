@@ -15,7 +15,11 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use tuicli::{
     application::ports::SessionRepository,
-    infrastructure::{config, pty::TerminalManager, session},
+    infrastructure::{
+        config,
+        pty::{MANAGED_SHELL_ENV, TerminalManager},
+        session,
+    },
     presentation,
 };
 
@@ -38,12 +42,17 @@ impl Drop for TerminalGuard {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    if std::env::var_os(MANAGED_SHELL_ENV).as_deref() == Some(std::ffi::OsStr::new("1")) {
+        return Err("tuicli sudah berjalan; keluar dari shell/window tuicli sebelum menjalankan instance baru".into());
+    }
+
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         return Err("tuicli harus dijalankan dari terminal interaktif (TTY), bukan melalui pipe atau redirect".into());
     }
 
     let config = config::load_or_create()?;
-    tuicli::presentation::controller::keybindings::validate(&config.keybindings)?;
+    let keymap =
+        tuicli::presentation::controller::keybindings::Keymap::compile(&config.keybindings)?;
 
     let session_repository = session::FileSessionRepository;
     let (saved_session, persist_session) = match session_repository.load() {
@@ -67,7 +76,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             io::stdout(),
             PushKeyboardEnhancementFlags(
                 KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
-                    | KeyboardEnhancementFlags::REPORT_EVENT_TYPES,
+                    | KeyboardEnhancementFlags::REPORT_EVENT_TYPES
+                    | KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES,
             )
         )?;
 
@@ -76,10 +86,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     terminal.clear()?;
+    tuicli::infrastructure::signals::install()?;
 
     presentation::runtime::run(
         &mut terminal,
         &config,
+        &keymap,
         saved_session,
         persist_session,
         Box::new(TerminalManager::default()),

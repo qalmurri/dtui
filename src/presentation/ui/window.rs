@@ -109,7 +109,7 @@ pub fn render(
                 " "
             };
 
-            spans.push(Span::styled(contents.to_owned(), style));
+            spans.push(Span::styled(contents, style));
         }
 
         lines.push(Line::from(spans));

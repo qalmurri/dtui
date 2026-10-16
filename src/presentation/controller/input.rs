@@ -1,6 +1,6 @@
 use crossterm::event::{KeyEvent, KeyEventKind};
 
-use crate::application::{action::Action, settings::Keybindings};
+use crate::application::action::Action;
 
 use super::keybindings;
 
@@ -8,8 +8,8 @@ use super::keybindings;
 ///
 /// Movement and resize shortcuts repeat while held. Other shortcuts only act
 /// on the initial press to avoid repeating destructive or mode-changing actions.
-pub fn resolve(key: KeyEvent, bindings: &Keybindings) -> Option<Action> {
-    let action = keybindings::resolve(key, bindings)?;
+pub fn resolve(key: KeyEvent, keymap: &keybindings::Keymap) -> Option<Action> {
+    let action = keybindings::resolve(key, keymap)?;
     match key.kind {
         KeyEventKind::Press => Some(action),
         KeyEventKind::Repeat

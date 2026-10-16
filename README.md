@@ -22,7 +22,7 @@ Built with Rust, tuicli focuses on stability, efficiency, and simplicity.
 
 ## Configuration
 
-The main configuration file is `~/.config/tuicli/config.toml`. The status line shows the system time on its right side. Set `desktop.time_format` to a [`strftime`](https://man7.org/linux/man-pages/man3/strftime.3.html) format to choose how it is displayed:
+The main configuration file is `~/.config/tuicli/config.toml`. The status line shows the average CPU frequency in GHz (for example, `3.20 GHz`) to the left of the system time. tuicli prefers hardware-reported data from Linux CPUFreq, then falls back to the current scaling frequency and `/proc/cpuinfo`; unsupported systems show `-- GHz`. Some systems expose only the frequency requested by the scaling driver, which may differ from the measured hardware frequency. Set `desktop.time_format` to a [`strftime`](https://man7.org/linux/man-pages/man3/strftime.3.html) format to choose how the time is displayed:
 
 ```toml
 [desktop]
@@ -42,6 +42,8 @@ toggle_mode = "f2" # default: F2
 Defaults are applied automatically for any shortcut omitted from `[keybindings]`. Movement and resize shortcuts repeat while held; other shortcuts only run on the initial press.
 
 tuicli requires an interactive terminal on both standard input and output. Its embedded shell runs in an xterm-compatible 256-color PTY profile; this profile is independent of the outer terminal used to display tuicli. Keyboard enhancement is optional, and keybindings continue to use Crossterm's regular key events when it is unavailable. Session state follows the XDG state directory (`~/.local/state/tuicli` by default). A `session.toml` in the config directory is ignored.
+
+Running `tuicli` from one of its managed terminal windows is rejected to avoid nested desktop instances. Exit the current tuicli session first, then launch it again from the login shell.
 
 ## Installation
 

@@ -37,7 +37,8 @@ pub trait TerminalBackend {
         geometry: Geometry,
     ) -> Result<(), Box<dyn Error>>;
     fn remove(&mut self, window_id: u64);
-    fn poll(&mut self);
+    /// Process pending PTY output and report whether any visible screen changed.
+    fn poll(&mut self) -> bool;
     fn screen(&self, window_id: u64) -> Option<&dyn TerminalScreen>;
     fn is_exited(&self, window_id: u64) -> bool;
     fn exited_window_ids(&self) -> Vec<u64>;

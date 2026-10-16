@@ -38,8 +38,8 @@ pub fn load_or_create() -> Result<Config, Box<dyn Error>> {
     let contents = fs::read_to_string(config_file)?;
     let config: Config = toml::from_str(&contents)?;
 
-    if config.runtime.poll_interval_ms == 0 {
-        return Err("runtime.poll_interval_ms harus lebih besar dari 0".into());
+    if !(16..=250).contains(&config.runtime.poll_interval_ms) {
+        return Err("runtime.poll_interval_ms harus berada pada rentang 16 hingga 250 ms".into());
     }
 
     Ok(config)
