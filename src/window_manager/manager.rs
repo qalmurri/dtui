@@ -1,6 +1,11 @@
 use crate::desktop::workspace::WorkspaceId;
 
-use super::{focus::Focus, geometry::Geometry, window::Window, z_order::ZOrder};
+use super::{
+    focus::Focus,
+    geometry::{Geometry, SnapDirection},
+    window::Window,
+    z_order::ZOrder,
+};
 
 #[derive(Debug, Default)]
 pub struct WindowManager {
@@ -27,10 +32,12 @@ impl WindowManager {
         let valid_ids: HashSet<u64> = windows.iter().map(|w| w.id).collect();
 
         self.windows = windows;
-        self.z_order.windows = z_order
-            .into_iter()
-            .filter(|id| valid_ids.contains(id))
-            .collect();
+        self.z_order.windows.clear();
+        for id in z_order {
+            if valid_ids.contains(&id) && !self.z_order.windows.contains(&id) {
+                self.z_order.windows.push(id);
+            }
+        }
 
         // Tambahkan jendela yang belum tercantum di z-order.
         for window in &self.windows {
@@ -198,6 +205,28 @@ impl WindowManager {
         };
 
         window.geometry = window.geometry.resize(dw, dh, area_width, area_height);
+    }
+
+    pub fn snap_focused(
+        &mut self,
+        direction: SnapDirection,
+        area_width: u16,
+        area_height: u16,
+        workspace_id: WorkspaceId,
+    ) {
+        let Some(id) = self.focus.window_id else {
+            return;
+        };
+
+        let Some(window) = self
+            .windows
+            .iter_mut()
+            .find(|window| window.id == id && window.workspace_id == workspace_id)
+        else {
+            return;
+        };
+
+        window.geometry = Geometry::snap(direction, area_width, area_height);
     }
 
     pub fn get(&self, id: u64) -> Option<&Window> {

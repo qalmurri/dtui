@@ -31,6 +31,15 @@ pub(super) fn validate(session: &SessionState) -> Result<(), Box<dyn Error>> {
         return Err("Sesi memiliki ID jendela duplikat".into());
     }
 
+    let mut z_order_ids = HashSet::new();
+    if session
+        .z_order
+        .iter()
+        .any(|id| !window_ids.contains(id) || !z_order_ids.insert(*id))
+    {
+        return Err("Urutan jendela dalam sesi tidak valid".into());
+    }
+
     if session
         .windows
         .iter()

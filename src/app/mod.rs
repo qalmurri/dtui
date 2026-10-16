@@ -2,6 +2,7 @@ mod actions;
 pub(crate) mod pty;
 mod runtime;
 mod session;
+mod window_actions;
 mod workspace;
 use self::pty::TerminalManager;
 use crate::{desktop::DesktopState, window_manager::WindowManager};

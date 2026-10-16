@@ -35,6 +35,10 @@ pub(super) fn render(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         shortcut(&bindings.resize_right, "Increase window width"),
         shortcut(&bindings.resize_up, "Decrease window height"),
         shortcut(&bindings.resize_down, "Increase window height"),
+        shortcut(&bindings.fit_left, "Fit window to left half"),
+        shortcut(&bindings.fit_right, "Fit window to right half"),
+        shortcut(&bindings.fit_up, "Fit window to top half"),
+        shortcut(&bindings.fit_down, "Fit window to bottom half"),
         shortcut(&bindings.new_window, "Create new window"),
         shortcut(&bindings.close_window, "Close focused window"),
         shortcut(&bindings.workspace_1, "Switch to first workspace"),
@@ -54,7 +58,7 @@ pub(super) fn render(frame: &mut Frame<'_>, area: Rect, config: &Config) {
     ];
 
     let popup_width = 76.min(area.width.saturating_sub(2));
-    let popup_height = 24.min(area.height.saturating_sub(2));
+    let popup_height = 28.min(area.height.saturating_sub(2));
 
     let popup_area = centered_rect(
         if area.width > 2 {

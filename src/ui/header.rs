@@ -22,6 +22,14 @@ pub(super) fn render(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
 
     let mut spans = vec![Span::styled(mode, mode_style), Span::raw(" ")];
 
+    if !state.desktop.status.message.is_empty() {
+        spans.push(Span::styled(
+            state.desktop.status.message.as_str(),
+            Style::default().fg(Color::Gray),
+        ));
+        spans.push(Span::raw("  |  "));
+    }
+
     for (index, workspace) in state.desktop.workspaces.iter().enumerate() {
         if index > 0 {
             spans.push(Span::raw("  "));

@@ -5,8 +5,8 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 use crate::{
     Tui,
     config::Config,
+    controller,
     core::{renderer, runtime as event_runtime},
-    keybindings,
 };
 
 use super::{AppState, actions, session, workspace};
@@ -15,8 +15,10 @@ pub fn run(
     terminal: &mut Tui,
     config: &Config,
     saved_session: Option<crate::session::SessionState>,
+    persist_session: bool,
 ) -> Result<(), Box<dyn Error>> {
     let mut state = AppState::default();
+
     let terminal_size = terminal.size()?;
     let desktop_height = terminal_size.height.saturating_sub(1);
 
@@ -37,19 +39,17 @@ pub fn run(
     }
 
     let poll_interval = Duration::from_millis(config.runtime.poll_interval_ms);
-
     while state.running {
         state.terminals.poll();
 
-        // Close windows whose shell processes have exited.
-        let exited_windows = state.terminals.exited_window_ids();
-
-        for window_id in exited_windows {
+        for window_id in state.terminals.exited_window_ids() {
             state.terminals.remove(window_id);
             state.window_manager.close(window_id);
         }
 
-        terminal.draw(|frame| renderer::render(frame, &state, config))?;
+        terminal.draw(|frame| {
+            renderer::render(frame, &state, config);
+        })?;
 
         let Some(event) = event_runtime::poll(poll_interval)? else {
             continue;
@@ -69,43 +69,54 @@ pub fn run(
 
                 continue;
             }
+
             Event::Key(key) => key,
             _ => continue,
         };
 
-        if key.kind != KeyEventKind::Press {
+        if key.kind == KeyEventKind::Release {
             continue;
         }
 
         if state.workspace_input.is_some() {
-            workspace::handle_input(&mut state, key.code);
+            if key.kind == KeyEventKind::Press {
+                workspace::handle_input(&mut state, key.code);
+            }
+
             continue;
         }
 
         if state.show_help {
-            state.show_help = false;
+            if key.kind == KeyEventKind::Press {
+                state.show_help = false;
+            }
+
             continue;
         }
 
-        // F2 switches between shell input and desktop shortcuts.
-        if key.code == KeyCode::F(2) {
+        if key.kind == KeyEventKind::Press && key.code == KeyCode::F(2) {
             state.terminal_input_mode = !state.terminal_input_mode;
+
             state.desktop.status.message = if state.terminal_input_mode {
                 "Terminal input mode (F2: desktop mode)".into()
             } else {
                 "Desktop mode (F2: terminal input)".into()
             };
+
             continue;
         }
 
+        // Terminal input tidak melewati controller desktop.
+        // Press dan Repeat diteruskan ke PTY.
         if state.terminal_input_mode {
             if let Some(window_id) = state.window_manager.focus.window_id {
                 state.terminals.write_key(window_id, key)?;
             }
+
             continue;
         }
 
-        let Some(action) = keybindings::resolve(key, &config.keybindings) else {
+        let Some(action) = controller::input::resolve(key, &config.keybindings) else {
             continue;
         };
 
@@ -113,7 +124,9 @@ pub fn run(
     }
 
     state.terminals.close_processes();
-    session::save(&state)?;
+    if persist_session {
+        session::save(&state)?;
+    }
 
     Ok(())
 }

@@ -14,6 +14,10 @@ pub enum Action {
     ResizeDown,
     ResizeUp,
     ResizeRight,
+    FitLeft,
+    FitDown,
+    FitUp,
+    FitRight,
     FocusNext,
     CloseWindow,
     NewWindow,
@@ -46,6 +50,10 @@ const ACTIONS: &[ActionBinding] = &[
     ("resize_down", |b| &b.resize_down, Action::ResizeDown),
     ("resize_up", |b| &b.resize_up, Action::ResizeUp),
     ("resize_right", |b| &b.resize_right, Action::ResizeRight),
+    ("fit_left", |b| &b.fit_left, Action::FitLeft),
+    ("fit_down", |b| &b.fit_down, Action::FitDown),
+    ("fit_up", |b| &b.fit_up, Action::FitUp),
+    ("fit_right", |b| &b.fit_right, Action::FitRight),
     ("focus_next", |b| &b.focus_next, Action::FocusNext),
     ("close_window", |b| &b.close_window, Action::CloseWindow),
     ("new_window", |b| &b.new_window, Action::NewWindow),
@@ -88,10 +96,11 @@ const ACTIONS: &[ActionBinding] = &[
 pub fn parse_key(value: &str) -> Result<(KeyCode, KeyModifiers), String> {
     let value = value.trim().to_lowercase();
 
-    let (modifiers, key) = if let Some(key) = value.strip_prefix("alt+") {
-        (KeyModifiers::ALT, key)
-    } else {
-        (KeyModifiers::NONE, value.as_str())
+    let (modifiers, key) = match value.split_once('+') {
+        Some(("alt", key)) => (KeyModifiers::ALT, key),
+        Some(("ctrl" | "control", key)) => (KeyModifiers::CONTROL, key),
+        Some(("win" | "super", key)) => (KeyModifiers::SUPER, key),
+        _ => (KeyModifiers::NONE, value.as_str()),
     };
 
     let code = match key {

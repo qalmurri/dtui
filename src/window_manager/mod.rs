@@ -1,6 +1,7 @@
 pub mod focus;
 pub mod geometry;
 pub mod manager;
+pub mod resize;
 pub mod window;
 pub mod z_order;
 

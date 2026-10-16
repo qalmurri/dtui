@@ -1,19 +1,28 @@
 use std::{
     collections::HashMap,
     env,
-    io::{Read, Write},
-    sync::mpsc::{self, Receiver},
-    thread,
+    io::{self, Read, Write},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc::{self, Receiver, TryRecvError},
+    },
+    thread::{self, JoinHandle},
 };
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::KeyEvent;
 use portable_pty::{Child, CommandBuilder, MasterPty, PtySize, native_pty_system};
 use vt100::{Parser, Screen};
 
 use crate::window_manager::{Geometry, Window};
 
+mod input;
+pub use input::key_to_bytes;
+
 type PtyChild = Box<dyn Child + Send + Sync>;
 type PtyMaster = Box<dyn MasterPty + Send>;
+
+const READER_POLL_TIMEOUT_MS: i32 = 100;
 
 pub struct PtySession {
     parser: Parser,
@@ -21,6 +30,9 @@ pub struct PtySession {
     master: PtyMaster,
     child: PtyChild,
     output: Receiver<Vec<u8>>,
+    reader_thread: Option<JoinHandle<()>>,
+    reader_stop: Arc<AtomicBool>,
+    output_closed: bool,
     exited: bool,
 }
 
@@ -28,6 +40,7 @@ impl PtySession {
     fn spawn(cols: u16, rows: u16) -> Result<Self, Box<dyn std::error::Error>> {
         let cols = cols.max(1);
         let rows = rows.max(1);
+
         let pty_system = native_pty_system();
         let pair = pty_system.openpty(PtySize {
             rows,
@@ -37,6 +50,7 @@ impl PtySession {
         })?;
 
         let shell = env::var("SHELL").unwrap_or_else(|_| String::from("/bin/sh"));
+
         let mut command = CommandBuilder::new(shell);
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
@@ -46,18 +60,69 @@ impl PtySession {
 
         let mut reader = pair.master.try_clone_reader()?;
         let writer = pair.master.take_writer()?;
-        let (sender, output) = mpsc::channel();
 
-        thread::spawn(move || {
+        #[cfg(unix)]
+        let poll_fd = pair
+            .master
+            .as_raw_fd()
+            .ok_or_else(|| io::Error::other("PTY master tidak menyediakan file descriptor"))?;
+
+        let (sender, output) = mpsc::channel::<Vec<u8>>();
+        let reader_stop = Arc::new(AtomicBool::new(false));
+        let stop_signal = Arc::clone(&reader_stop);
+
+        let reader_thread = thread::spawn(move || {
             let mut buffer = [0_u8; 4096];
+
             loop {
+                if stop_signal.load(Ordering::Acquire) {
+                    break;
+                }
+
+                #[cfg(unix)]
+                {
+                    let mut poll_fd = libc::pollfd {
+                        fd: poll_fd,
+                        events: libc::POLLIN,
+                        revents: 0,
+                    };
+
+                    // Periodic polling allows the reader to notice shutdown
+                    // even when no PTY output arrives.
+                    let result = unsafe { libc::poll(&mut poll_fd, 1, READER_POLL_TIMEOUT_MS) };
+
+                    if result == 0 {
+                        continue;
+                    }
+
+                    if result < 0 {
+                        let error = io::Error::last_os_error();
+
+                        if error.kind() == io::ErrorKind::Interrupted {
+                            continue;
+                        }
+
+                        break;
+                    }
+
+                    if poll_fd.revents & libc::POLLNVAL != 0 {
+                        break;
+                    }
+
+                    if poll_fd.revents & (libc::POLLIN | libc::POLLHUP | libc::POLLERR) == 0 {
+                        continue;
+                    }
+                }
+
                 match reader.read(&mut buffer) {
-                    Ok(0) | Err(_) => break,
+                    Ok(0) => break,
                     Ok(length) => {
                         if sender.send(buffer[..length].to_vec()).is_err() {
                             break;
                         }
                     }
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                    Err(_) => break,
                 }
             }
         });
@@ -68,28 +133,52 @@ impl PtySession {
             master: pair.master,
             child,
             output,
+            reader_thread: Some(reader_thread),
+            reader_stop,
+            output_closed: false,
             exited: false,
         })
     }
 
-    fn poll_output(&mut self) {
-        for bytes in self.output.try_iter() {
-            self.parser.process(&bytes);
-        }
-
-        if !self.exited {
-            match self.child.try_wait() {
-                Ok(Some(_)) => self.exited = true,
-                Ok(None) => {}
-                Err(_) => self.exited = true,
+    fn drain_output(&mut self) {
+        loop {
+            match self.output.try_recv() {
+                Ok(bytes) => self.parser.process(&bytes),
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    self.output_closed = true;
+                    break;
+                }
             }
         }
     }
 
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+    fn poll_output(&mut self) {
+        self.drain_output();
+
+        if !self.exited {
+            match self.child.try_wait() {
+                Ok(Some(_status)) => self.exited = true,
+                Ok(None) => {}
+                Err(error) => {
+                    eprintln!("TUICLI: gagal memeriksa status shell: {error}");
+                }
+            }
+        }
+
+        if self.output_closed
+            && let Some(reader_thread) = self.reader_thread.take()
+            && reader_thread.join().is_err()
+        {
+            eprintln!("TUICLI: reader thread terminal mengalami panic");
+        }
+    }
+
+    fn write(&mut self, bytes: &[u8]) -> io::Result<()> {
         if self.exited {
             return Ok(());
         }
+
         self.writer.write_all(bytes)?;
         self.writer.flush()
     }
@@ -97,21 +186,87 @@ impl PtySession {
     fn resize(&mut self, cols: u16, rows: u16) -> Result<(), Box<dyn std::error::Error>> {
         let cols = cols.max(1);
         let rows = rows.max(1);
+
         self.master.resize(PtySize {
             rows,
             cols,
             pixel_width: 0,
             pixel_height: 0,
         })?;
+
         self.parser.screen_mut().set_size(rows, cols);
+
         Ok(())
+    }
+
+    fn stop_reader(&mut self) {
+        self.reader_stop.store(true, Ordering::Release);
+
+        if let Some(reader_thread) = self.reader_thread.take()
+            && reader_thread.join().is_err()
+        {
+            eprintln!("TUICLI: reader thread terminal mengalami panic");
+        }
+
+        self.drain_output();
+        self.output_closed = true;
     }
 
     fn stop(&mut self) {
         if !self.exited {
-            let _ = self.child.kill();
-            let _ = self.child.try_wait();
-            self.exited = true;
+            #[cfg(unix)]
+            self.terminate_foreground_group();
+
+            // portable-pty's Unix Child::kill sends SIGHUP and may escalate
+            // for the direct child. It does not guarantee killing every
+            // background process in the session.
+            if let Err(error) = self.child.kill() {
+                eprintln!("TUICLI: gagal menghentikan shell: {error}");
+            }
+
+            match self.child.wait() {
+                Ok(_status) => self.exited = true,
+                Err(error) => {
+                    eprintln!("TUICLI: gagal menunggu shell berhenti: {error}");
+                }
+            }
+        }
+
+        // Keep the master alive while the reader polls its descriptor.
+        // The stop flag lets the reader leave its polling loop.
+        self.stop_reader();
+    }
+
+    #[cfg(unix)]
+    fn terminate_foreground_group(&self) {
+        let Some(group_id) = self.master.process_group_leader() else {
+            return;
+        };
+
+        let Some(session_id) = self.child.process_id() else {
+            return;
+        };
+
+        let Ok(session_id) = i32::try_from(session_id) else {
+            return;
+        };
+
+        if group_id <= 0 || session_id <= 0 {
+            return;
+        }
+
+        // Verify that the foreground process group still belongs to this
+        // PTY session before sending a signal.
+        let actual_session = unsafe { libc::getsid(group_id) };
+
+        if actual_session != session_id {
+            return;
+        }
+
+        // Signal the foreground job's process group, not an arbitrary PID.
+        // The direct shell is handled separately by Child::kill().
+        unsafe {
+            libc::kill(-group_id, libc::SIGTERM);
         }
     }
 }
@@ -139,8 +294,10 @@ impl TerminalManager {
 
         let cols = geometry.width.saturating_sub(2).max(1);
         let rows = geometry.height.saturating_sub(2).max(1);
+
         let session = PtySession::spawn(cols, rows)?;
         self.sessions.insert(window_id, session);
+
         Ok(())
     }
 
@@ -169,18 +326,21 @@ impl TerminalManager {
     pub fn exited_window_ids(&self) -> Vec<u64> {
         self.sessions
             .iter()
-            .filter_map(|(&id, session)| session.exited.then_some(id))
+            .filter_map(|(&id, session)| (session.exited && session.output_closed).then_some(id))
             .collect()
     }
 
-    pub fn write_key(&mut self, window_id: u64, key: KeyEvent) -> std::io::Result<()> {
+    pub fn write_key(&mut self, window_id: u64, key: KeyEvent) -> io::Result<()> {
         let Some(session) = self.sessions.get_mut(&window_id) else {
             return Ok(());
         };
+
         let bytes = key_to_bytes(key);
+
         if !bytes.is_empty() {
             session.write(&bytes)?;
         }
+
         Ok(())
     }
 
@@ -195,6 +355,7 @@ impl TerminalManager {
                 geometry.height.saturating_sub(2).max(1),
             )?;
         }
+
         Ok(())
     }
 
@@ -208,6 +369,7 @@ impl TerminalManager {
             let geometry = window.geometry.fit(area_width, area_height);
             self.resize_window(window.id, geometry)?;
         }
+
         Ok(())
     }
 
@@ -218,6 +380,7 @@ impl TerminalManager {
         for window in windows {
             self.spawn_for_window(window.id, window.geometry)?;
         }
+
         Ok(())
     }
 
@@ -225,85 +388,5 @@ impl TerminalManager {
         for session in self.sessions.values_mut() {
             session.stop();
         }
-    }
-}
-
-pub fn key_to_bytes(key: KeyEvent) -> Vec<u8> {
-    let modifiers = key.modifiers;
-    if modifiers.contains(KeyModifiers::CONTROL)
-        && let KeyCode::Char(ch) = key.code
-    {
-        let ch = ch.to_ascii_lowercase();
-
-        if ch.is_ascii_lowercase() {
-            return vec![ch as u8 - b'a' + 1];
-        }
-
-        return match ch {
-            '@' | ' ' => vec![0],
-            '[' => vec![0x1b],
-            '\\' => vec![0x1c],
-            ']' => vec![0x1d],
-            '^' => vec![0x1e],
-            '_' => vec![0x1f],
-            _ => ch.to_string().into_bytes(),
-        };
-    }
-
-    let mut bytes = match key.code {
-        KeyCode::Char(ch) => ch.to_string().into_bytes(),
-        KeyCode::Enter => b"\r".to_vec(),
-        KeyCode::Backspace => vec![0x7f],
-        KeyCode::Tab => b"\t".to_vec(),
-        KeyCode::BackTab => b"\x1b[Z".to_vec(),
-        KeyCode::Esc => vec![0x1b],
-        KeyCode::Up => b"\x1b[A".to_vec(),
-        KeyCode::Down => b"\x1b[B".to_vec(),
-        KeyCode::Right => b"\x1b[C".to_vec(),
-        KeyCode::Left => b"\x1b[D".to_vec(),
-        KeyCode::Home => b"\x1b[H".to_vec(),
-        KeyCode::End => b"\x1b[F".to_vec(),
-        KeyCode::PageUp => b"\x1b[5~".to_vec(),
-        KeyCode::PageDown => b"\x1b[6~".to_vec(),
-        KeyCode::Delete => b"\x1b[3~".to_vec(),
-        KeyCode::Insert => b"\x1b[2~".to_vec(),
-        KeyCode::F(1) => b"\x1bOP".to_vec(),
-        KeyCode::F(2) => b"\x1bOQ".to_vec(),
-        KeyCode::F(3) => b"\x1bOR".to_vec(),
-        KeyCode::F(4) => b"\x1bOS".to_vec(),
-        KeyCode::F(n @ 5..=12) => format!("\x1b[{}~", 15 + (n - 5) * 2).into_bytes(),
-        _ => Vec::new(),
-    };
-
-    if modifiers.contains(KeyModifiers::ALT) && !bytes.is_empty() {
-        bytes.insert(0, 0x1b);
-    }
-    bytes
-}
-
-#[cfg(test)]
-mod tests {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    use super::key_to_bytes;
-
-    #[test]
-    fn encodes_regular_and_control_keys() {
-        assert_eq!(
-            key_to_bytes(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE)),
-            b"a".to_vec()
-        );
-        assert_eq!(
-            key_to_bytes(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
-            vec![3]
-        );
-        assert_eq!(
-            key_to_bytes(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
-            b"\r".to_vec()
-        );
-        assert_eq!(
-            key_to_bytes(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
-            b"\x1b[A".to_vec()
-        );
     }
 }

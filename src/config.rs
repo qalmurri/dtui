@@ -50,6 +50,11 @@ pub struct Keybindings {
     pub resize_up: String,
     pub resize_right: String,
 
+    pub fit_left: String,
+    pub fit_down: String,
+    pub fit_up: String,
+    pub fit_right: String,
+
     pub focus_next: String,
     pub close_window: String,
     pub new_window: String,
@@ -103,15 +108,20 @@ impl Default for Keybindings {
             quit: "q".into(),
             help: "?".into(),
 
-            move_left: "h".into(),
-            move_down: "j".into(),
-            move_up: "k".into(),
-            move_right: "l".into(),
+            move_left: "left".into(),
+            move_down: "down".into(),
+            move_up: "up".into(),
+            move_right: "right".into(),
 
-            resize_left: "alt+h".into(),
-            resize_down: "alt+j".into(),
-            resize_up: "alt+k".into(),
-            resize_right: "alt+l".into(),
+            resize_left: "alt+left".into(),
+            resize_down: "alt+down".into(),
+            resize_up: "alt+up".into(),
+            resize_right: "alt+right".into(),
+
+            fit_left: "ctrl+left".into(),
+            fit_down: "ctrl+down".into(),
+            fit_up: "ctrl+up".into(),
+            fit_right: "ctrl+right".into(),
 
             focus_next: "tab".into(),
             close_window: "x".into(),
@@ -183,6 +193,46 @@ pub fn load_or_create() -> Result<Config, Box<dyn Error>> {
 
     let contents = fs::read_to_string(keybindings_file)?;
     config.keybindings = toml::from_str(&contents)?;
+
+    // Migrasikan keybindings bawaan lama agar perubahan default juga berlaku
+    // bagi pengguna yang sudah memiliki keybindings.toml.
+    if config.keybindings.move_left == "h"
+        && config.keybindings.move_down == "j"
+        && config.keybindings.move_up == "k"
+        && config.keybindings.move_right == "l"
+    {
+        config.keybindings.move_left = "left".into();
+        config.keybindings.move_down = "down".into();
+        config.keybindings.move_up = "up".into();
+        config.keybindings.move_right = "right".into();
+    }
+
+    if config.keybindings.resize_left == "alt+h" {
+        config.keybindings.resize_left = "alt+left".into();
+    }
+    if config.keybindings.resize_down == "alt+j" {
+        config.keybindings.resize_down = "alt+down".into();
+    }
+    if config.keybindings.resize_up == "alt+k" {
+        config.keybindings.resize_up = "alt+up".into();
+    }
+    if config.keybindings.resize_right == "alt+l" {
+        config.keybindings.resize_right = "alt+right".into();
+    }
+
+    if config.keybindings.fit_left == "win+left" || config.keybindings.fit_left == "super+left" {
+        config.keybindings.fit_left = "ctrl+left".into();
+    }
+    if config.keybindings.fit_down == "win+down" || config.keybindings.fit_down == "super+down" {
+        config.keybindings.fit_down = "ctrl+down".into();
+    }
+    if config.keybindings.fit_up == "win+up" || config.keybindings.fit_up == "super+up" {
+        config.keybindings.fit_up = "ctrl+up".into();
+    }
+    if config.keybindings.fit_right == "win+right" || config.keybindings.fit_right == "super+right"
+    {
+        config.keybindings.fit_right = "ctrl+right".into();
+    }
 
     if config.runtime.poll_interval_ms == 0 {
         return Err("runtime.poll_interval_ms harus lebih besar dari 0".into());

@@ -1,46 +1,33 @@
 use std::error::Error;
 
-use crate::{Tui, desktop::workspace::WorkspaceId, keybindings::Action, window_manager::Geometry};
+use crate::{Tui, keybindings::Action, window_manager::Geometry};
 
-use super::{AppState, workspace};
+use super::{AppState, window_actions, workspace};
 
 pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<(), Box<dyn Error>> {
-    let workspace_id = state
-        .desktop
-        .active_workspace()
-        .map(|workspace| workspace.id)
-        .unwrap_or(WorkspaceId(0));
+    let workspace_id = window_actions::active_workspace_id(state);
 
     match action {
         Action::Quit => state.running = false,
+
         Action::Help => state.show_help = true,
 
-        Action::MoveLeft => move_focused_window(state, terminal, -2, 0, workspace_id)?,
-        Action::MoveDown => move_focused_window(state, terminal, 0, 1, workspace_id)?,
-        Action::MoveUp => move_focused_window(state, terminal, 0, -1, workspace_id)?,
-        Action::MoveRight => move_focused_window(state, terminal, 2, 0, workspace_id)?,
-
-        Action::ResizeLeft | Action::ResizeDown | Action::ResizeUp | Action::ResizeRight => {
-            let (dw, dh) = match action {
-                Action::ResizeLeft => (-1, 0),
-                Action::ResizeDown => (0, 1),
-                Action::ResizeUp => (0, -1),
-                Action::ResizeRight => (1, 0),
-                _ => unreachable!(),
-            };
-
-            let size = terminal.size()?;
-
-            state.window_manager.resize_focused(
-                dw,
-                dh,
-                size.width,
-                size.height.saturating_sub(1),
-                workspace_id,
-            );
+        Action::MoveLeft | Action::MoveDown | Action::MoveUp | Action::MoveRight => {
+            window_actions::move_focused(state, terminal, action)?;
         }
 
-        Action::FocusNext => state.window_manager.focus_next(workspace_id),
+        Action::ResizeLeft | Action::ResizeDown | Action::ResizeUp | Action::ResizeRight => {
+            window_actions::resize_focused(state, terminal, action)?;
+            return Ok(());
+        }
+
+        Action::FitLeft | Action::FitDown | Action::FitUp | Action::FitRight => {
+            window_actions::fit_focused(state, terminal, action)?;
+        }
+
+        Action::FocusNext => {
+            state.window_manager.focus_next(workspace_id);
+        }
 
         Action::CloseWindow => {
             let focused_id = state
@@ -99,37 +86,6 @@ pub fn handle(state: &mut AppState, action: Action, terminal: &Tui) -> Result<()
         Action::WorkspaceRename => workspace::begin_rename(state),
         Action::WorkspaceDelete => workspace::delete_active(state),
     }
-
-    let size = terminal.size()?;
-    let windows = state.window_manager.windows.clone();
-
-    if let Err(error) =
-        state
-            .terminals
-            .resize_all(&windows, size.width, size.height.saturating_sub(1))
-    {
-        state.desktop.status.message = format!("Gagal resize terminal: {error}");
-    }
-
-    Ok(())
-}
-
-fn move_focused_window(
-    state: &mut AppState,
-    terminal: &Tui,
-    dx: i16,
-    dy: i16,
-    workspace_id: WorkspaceId,
-) -> Result<(), Box<dyn Error>> {
-    let size = terminal.size()?;
-
-    state.window_manager.move_focused(
-        dx,
-        dy,
-        size.width,
-        size.height.saturating_sub(1),
-        workspace_id,
-    );
 
     Ok(())
 }
