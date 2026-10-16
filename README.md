@@ -75,6 +75,10 @@ Ensure `~/.cargo/bin` is in your `PATH`, then run:
 tuicli
 ```
 
+### Other package managers
+
+Package definitions for Arch Linux (AUR), Homebrew on Linux, and Nix are being prepared. See [additional package distribution](docs/package-distributions.md) for their current status.
+
 ## Development
 
 Requirements: Rust and Cargo.
