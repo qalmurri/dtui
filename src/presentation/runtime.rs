@@ -45,7 +45,9 @@ pub fn run(
     let poll_interval = Duration::from_millis(config.runtime.poll_interval_ms);
     let mut redraw = true;
     let mut last_clock_second = unix_second();
-    state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
+    if config.desktop.show_cpu_frequency {
+        state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
+    }
     while state.running && !crate::infrastructure::signals::shutdown_requested() {
         redraw |= state.terminals.poll();
 
@@ -59,7 +61,9 @@ pub fn run(
         let clock_second = unix_second();
         if clock_second != last_clock_second {
             last_clock_second = clock_second;
-            state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
+            if config.desktop.show_cpu_frequency {
+                state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
+            }
             redraw = true;
         }
 

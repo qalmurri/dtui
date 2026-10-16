@@ -27,6 +27,7 @@ The main configuration file is `~/.config/tuicli/config.toml`. The status line s
 ```toml
 [desktop]
 time_format = "%H:%M:%S"
+show_cpu_frequency = false # optional; default: true
 ```
 
 The format uses the system's local timezone. If `time_format` is empty or omitted, tuicli displays the raw Unix timestamp in seconds. Existing configuration files without this setting continue to work and use the timestamp fallback.

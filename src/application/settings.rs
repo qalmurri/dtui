@@ -10,11 +10,22 @@ pub struct Config {
     pub keybindings: Keybindings,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DesktopConfig {
     /// Local time format using `strftime` codes; empty displays the Unix timestamp.
     pub time_format: String,
+    /// Show the average CPU frequency beside the clock.
+    pub show_cpu_frequency: bool,
+}
+
+impl Default for DesktopConfig {
+    fn default() -> Self {
+        Self {
+            time_format: String::new(),
+            show_cpu_frequency: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -35,10 +35,14 @@ pub(super) fn render(
         ));
     }
     let time = system_time_label(&config.desktop.time_format);
-    let cpu_frequency = state
-        .cpu_frequency_ghz
-        .map_or_else(|| "-- GHz".to_owned(), |ghz| format!("{ghz:.2} GHz"));
-    let right_label = format!("{cpu_frequency}  {time}");
+    let right_label = if config.desktop.show_cpu_frequency {
+        let cpu_frequency = state
+            .cpu_frequency_ghz
+            .map_or_else(|| "-- GHz".to_owned(), |ghz| format!("{ghz:.2} GHz"));
+        format!("{cpu_frequency}  {time}")
+    } else {
+        time
+    };
     let time_width = right_label
         .chars()
         .count()
