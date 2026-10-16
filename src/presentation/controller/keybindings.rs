@@ -20,6 +20,7 @@ const ACTIONS: &[ActionBinding] = &[
     ("fit_up", |b| &b.fit_up, Action::FitUp),
     ("fit_right", |b| &b.fit_right, Action::FitRight),
     ("focus_next", |b| &b.focus_next, Action::FocusNext),
+    ("toggle_mode", |b| &b.toggle_mode, Action::ToggleMode),
     ("close_window", |b| &b.close_window, Action::CloseWindow),
     ("new_window", |b| &b.new_window, Action::NewWindow),
     ("workspace_1", |b| &b.workspace_1, Action::Workspace1),
@@ -60,25 +61,54 @@ const ACTIONS: &[ActionBinding] = &[
 
 pub fn parse_key(value: &str) -> Result<(KeyCode, KeyModifiers), String> {
     let value = value.trim().to_lowercase();
+    let mut modifiers = KeyModifiers::NONE;
+    let mut key = None;
+    for part in value.split('+') {
+        let modifier = match part {
+            "alt" => Some(KeyModifiers::ALT),
+            "ctrl" | "control" => Some(KeyModifiers::CONTROL),
+            "shift" => Some(KeyModifiers::SHIFT),
+            "win" | "super" => Some(KeyModifiers::SUPER),
+            "hyper" => Some(KeyModifiers::HYPER),
+            "meta" => Some(KeyModifiers::META),
+            _ => None,
+        };
 
-    let (modifiers, key) = match value.split_once('+') {
-        Some(("alt", key)) => (KeyModifiers::ALT, key),
-        Some(("ctrl" | "control", key)) => (KeyModifiers::CONTROL, key),
-        Some(("win" | "super", key)) => (KeyModifiers::SUPER, key),
-        _ => (KeyModifiers::NONE, value.as_str()),
-    };
+        if let Some(modifier) = modifier {
+            if modifiers.contains(modifier) {
+                return Err(format!("Modifier '{part}' ditulis lebih dari sekali"));
+            }
+            modifiers.insert(modifier);
+        } else if key.replace(part).is_some() {
+            return Err(format!("Terlalu banyak tombol dalam binding '{value}'"));
+        }
+    }
+    let key = key.ok_or_else(|| format!("Binding '{value}' tidak memiliki tombol"))?;
 
     let code = match key {
         "esc" | "escape" => KeyCode::Esc,
         "enter" | "return" => KeyCode::Enter,
+        "backspace" => KeyCode::Backspace,
         "up" => KeyCode::Up,
         "down" => KeyCode::Down,
         "left" => KeyCode::Left,
         "right" => KeyCode::Right,
+        "home" => KeyCode::Home,
+        "end" => KeyCode::End,
+        "pageup" | "page_up" => KeyCode::PageUp,
+        "pagedown" | "page_down" => KeyCode::PageDown,
+        "delete" | "del" => KeyCode::Delete,
+        "insert" | "ins" => KeyCode::Insert,
         "tab" => KeyCode::Tab,
+        "backtab" => KeyCode::BackTab,
         "space" => KeyCode::Char(' '),
-        "f1" => KeyCode::F(1),
-        "f2" => KeyCode::F(2),
+        _ if key.starts_with('f')
+            && key[1..]
+                .parse::<u8>()
+                .is_ok_and(|number| (1..=12).contains(&number)) =>
+        {
+            KeyCode::F(key[1..].parse().expect("validated function key"))
+        }
         _ => {
             let mut chars = key.chars();
 
@@ -114,9 +144,21 @@ pub fn validate(bindings: &Keybindings) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn resolve(key: KeyEvent, bindings: &Keybindings) -> Option<Action> {
+    let event_modifiers = relevant_modifiers(key.modifiers);
     ACTIONS.iter().find_map(|(_, get_binding, action)| {
         let (code, modifiers) = parse_key(get_binding(bindings)).ok()?;
 
-        (key.code == code && key.modifiers == modifiers).then_some(*action)
+        (key.code == code && event_modifiers == modifiers).then_some(*action)
     })
+}
+
+/// Ignore lock-state flags that terminals may attach to otherwise identical keys.
+fn relevant_modifiers(modifiers: KeyModifiers) -> KeyModifiers {
+    modifiers
+        & (KeyModifiers::SHIFT
+            | KeyModifiers::ALT
+            | KeyModifiers::CONTROL
+            | KeyModifiers::SUPER
+            | KeyModifiers::HYPER
+            | KeyModifiers::META)
 }

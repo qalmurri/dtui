@@ -16,6 +16,7 @@ Built with Rust, tuicli focuses on stability, efficiency, and simplicity.
 - **PTY integration** — run interactive shell sessions inside windows.
 - **TOML configuration** — customize desktop settings.
 - **Linux TTY oriented** — designed for minimal Linux environments without Xorg or Wayland.
+- **Terminal-first input** — configurable keybindings with fallback operation on standard TTY input.
 
 > tuicli is under active development. Features, configuration, and behavior may change.
 
@@ -25,7 +26,6 @@ The main configuration file is `~/.config/tuicli/config.toml`. The status line s
 
 ```toml
 [desktop]
-title = "TUICLI"
 time_format = "%H:%M:%S"
 ```
 
@@ -36,9 +36,12 @@ Keyboard shortcuts are configured in the `[keybindings]` section of the same `~/
 ```toml
 [keybindings]
 quit = "escape"
+toggle_mode = "f2" # default: F2
 ```
 
-Defaults are applied automatically for any shortcut omitted from `[keybindings]`.
+Defaults are applied automatically for any shortcut omitted from `[keybindings]`. Movement and resize shortcuts repeat while held; other shortcuts only run on the initial press.
+
+tuicli requires an interactive terminal on both standard input and output. Its embedded shell runs in an xterm-compatible 256-color PTY profile; this profile is independent of the outer terminal used to display tuicli. Keyboard enhancement is optional, and keybindings continue to use Crossterm's regular key events when it is unavailable. Session state follows the XDG state directory (`~/.local/state/tuicli` by default). A `session.toml` in the config directory is ignored.
 
 ## Installation
 

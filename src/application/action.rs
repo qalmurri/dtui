@@ -15,6 +15,7 @@ pub enum Action {
     FitUp,
     FitRight,
     FocusNext,
+    ToggleMode,
     CloseWindow,
     NewWindow,
     Workspace1,

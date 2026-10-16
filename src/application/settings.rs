@@ -13,7 +13,6 @@ pub struct Config {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DesktopConfig {
-    pub title: String,
     /// Local time format using `strftime` codes; empty displays the Unix timestamp.
     pub time_format: String,
 }
@@ -46,6 +45,7 @@ pub struct Keybindings {
     pub fit_right: String,
 
     pub focus_next: String,
+    pub toggle_mode: String,
     pub close_window: String,
     pub new_window: String,
 
@@ -69,7 +69,6 @@ pub struct Keybindings {
 impl Default for DesktopConfig {
     fn default() -> Self {
         Self {
-            title: "TUICLI".into(),
             time_format: String::new(),
         }
     }
@@ -105,6 +104,7 @@ impl Default for Keybindings {
             fit_right: "ctrl+right".into(),
 
             focus_next: "tab".into(),
+            toggle_mode: "f2".into(),
             close_window: "x".into(),
             new_window: "n".into(),
 

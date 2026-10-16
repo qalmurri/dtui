@@ -1,5 +1,4 @@
 use super::{
-    panel::PanelState,
     status::DesktopStatus,
     workspace::{Workspace, WorkspaceId},
 };
@@ -10,7 +9,6 @@ pub const MAX_WORKSPACES: usize = 9;
 pub struct DesktopState {
     pub workspaces: Vec<Workspace>,
     pub active_workspace: usize,
-    pub panel: PanelState,
     pub status: DesktopStatus,
     next_workspace_id: usize,
 }
@@ -20,7 +18,6 @@ impl Default for DesktopState {
         Self {
             workspaces: vec![Workspace::new(0, "MAIN")],
             active_workspace: 0,
-            panel: PanelState::default(),
             status: DesktopStatus::default(),
             next_workspace_id: 1,
         }

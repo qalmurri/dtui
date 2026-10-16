@@ -12,6 +12,7 @@ use crate::{
     presentation::{
         Tui, controller,
         terminal::{renderer, runtime as event_runtime},
+        ui::layout,
     },
 };
 
@@ -26,20 +27,16 @@ pub fn run(
     let mut state = AppState::new(terminal_backend);
 
     let terminal_size = terminal.size()?;
-    let desktop_height = terminal_size.height.saturating_sub(1);
+    let (desktop_width, desktop_height) =
+        layout::desktop_size(terminal_size.width, terminal_size.height);
 
-    application::restore_or_initialize(
-        &mut state,
-        saved_session,
-        terminal_size.width,
-        desktop_height,
-    )?;
+    application::restore_or_initialize(&mut state, saved_session, desktop_width, desktop_height)?;
 
     let windows = state.window_manager.windows.clone();
 
     if let Err(error) = state
         .terminals
-        .resize_all(&windows, terminal_size.width, desktop_height)
+        .resize_all(&windows, desktop_width, desktop_height)
     {
         state.desktop.status.message = format!("Gagal resize terminal saat startup: {error}");
     }
@@ -64,11 +61,12 @@ pub fn run(
         let key = match event {
             Event::Resize(width, height) => {
                 let windows = state.window_manager.windows.clone();
+                let (desktop_width, desktop_height) = layout::desktop_size(width, height);
 
                 if let Err(error) =
                     state
                         .terminals
-                        .resize_all(&windows, width, height.saturating_sub(1))
+                        .resize_all(&windows, desktop_width, desktop_height)
                 {
                     state.desktop.status.message = format!("Gagal resize terminal: {error}");
                 }
@@ -107,15 +105,18 @@ pub fn run(
             continue;
         }
 
-        if key.kind == KeyEventKind::Press && key.code == KeyCode::F(2) {
-            state.terminal_input_mode = !state.terminal_input_mode;
-
-            state.desktop.status.message = if state.terminal_input_mode {
-                "Terminal input mode (F2: desktop mode)".into()
-            } else {
-                "Desktop mode (F2: terminal input)".into()
-            };
-
+        if key.kind == KeyEventKind::Press
+            && controller::keybindings::resolve(key, &config.keybindings)
+                == Some(application::action::Action::ToggleMode)
+        {
+            let size = terminal.size()?;
+            let (desktop_width, desktop_height) = layout::desktop_size(size.width, size.height);
+            application::handle(
+                &mut state,
+                application::action::Action::ToggleMode,
+                desktop_width,
+                desktop_height,
+            )?;
             continue;
         }
 
@@ -137,7 +138,8 @@ pub fn run(
         };
 
         let size = terminal.size()?;
-        application::handle(&mut state, action, size.width, size.height)?;
+        let (desktop_width, desktop_height) = layout::desktop_size(size.width, size.height);
+        application::handle(&mut state, action, desktop_width, desktop_height)?;
     }
 
     state.terminals.close_processes();

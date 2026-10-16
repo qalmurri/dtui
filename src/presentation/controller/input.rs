@@ -6,12 +6,27 @@ use super::keybindings;
 
 /// Resolve one keyboard event into one configured action.
 ///
-/// Desktop shortcuts are press based. Repeats and releases do not produce
-/// application actions, which keeps one key event independent from another.
+/// Movement and resize shortcuts repeat while held. Other shortcuts only act
+/// on the initial press to avoid repeating destructive or mode-changing actions.
 pub fn resolve(key: KeyEvent, bindings: &Keybindings) -> Option<Action> {
-    if key.kind != KeyEventKind::Press {
-        return None;
+    let action = keybindings::resolve(key, bindings)?;
+    match key.kind {
+        KeyEventKind::Press => Some(action),
+        KeyEventKind::Repeat
+            if matches!(
+                action,
+                Action::MoveLeft
+                    | Action::MoveDown
+                    | Action::MoveUp
+                    | Action::MoveRight
+                    | Action::ResizeLeft
+                    | Action::ResizeDown
+                    | Action::ResizeUp
+                    | Action::ResizeRight
+            ) =>
+        {
+            Some(action)
+        }
+        _ => None,
     }
-
-    keybindings::resolve(key, bindings)
 }

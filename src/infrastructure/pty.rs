@@ -48,11 +48,13 @@ impl PtySession {
             pixel_height: 0,
         })?;
 
-        let shell = env::var("SHELL").unwrap_or_else(|_| String::from("/bin/sh"));
+        let shell = resolve_shell();
 
         let mut command = CommandBuilder::new(shell);
         command.env("TERM", "xterm-256color");
-        command.env("COLORTERM", "truecolor");
+        // The emulated child terminal promises xterm's 256-color profile. Do not
+        // advertise truecolor separately: the outer Linux console may not support it.
+        command.env_remove("COLORTERM");
 
         let child = pair.slave.spawn_command(command)?;
         drop(pair.slave);
@@ -279,6 +281,48 @@ impl PtySession {
     }
 }
 
+fn resolve_shell() -> String {
+    let candidate = env::var("SHELL")
+        .ok()
+        .filter(|shell| !shell.trim().is_empty());
+    let Some(candidate) = candidate else {
+        return String::from("/bin/sh");
+    };
+
+    let path = std::path::Path::new(&candidate);
+    if path.is_absolute() || candidate.contains(std::path::MAIN_SEPARATOR) {
+        return if is_executable(path) {
+            candidate
+        } else {
+            String::from("/bin/sh")
+        };
+    }
+
+    if let Some(search_path) = env::var_os("PATH") {
+        for directory in env::split_paths(&search_path) {
+            let path = directory.join(&candidate);
+            if is_executable(&path) {
+                return path.to_string_lossy().into_owned();
+            }
+        }
+    }
+
+    String::from("/bin/sh")
+}
+
+#[cfg(unix)]
+fn is_executable(path: &std::path::Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+
+    path.metadata()
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn is_executable(path: &std::path::Path) -> bool {
+    path.is_file()
+}
+
 impl Drop for PtySession {
     fn drop(&mut self) {
         self.stop();
@@ -468,6 +512,14 @@ impl TerminalBackend for TerminalManager {
 
     fn write_input(&mut self, window_id: u64, bytes: &[u8]) -> io::Result<()> {
         TerminalManager::write_input(self, window_id, bytes)
+    }
+
+    fn resize_window(
+        &mut self,
+        window_id: u64,
+        geometry: Geometry,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        TerminalManager::resize_window(self, window_id, geometry)
     }
 
     fn resize_all(

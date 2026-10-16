@@ -42,6 +42,7 @@ pub trait TerminalBackend {
     fn is_exited(&self, window_id: u64) -> bool;
     fn exited_window_ids(&self) -> Vec<u64>;
     fn write_input(&mut self, window_id: u64, bytes: &[u8]) -> io::Result<()>;
+    fn resize_window(&mut self, window_id: u64, geometry: Geometry) -> Result<(), Box<dyn Error>>;
     fn resize_all(
         &mut self,
         windows: &[Window],

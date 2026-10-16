@@ -10,8 +10,8 @@ use super::{AppState, window_actions, workspace};
 pub fn handle(
     state: &mut AppState,
     action: Action,
-    terminal_width: u16,
-    terminal_height: u16,
+    desktop_width: u16,
+    desktop_height: u16,
 ) -> Result<(), Box<dyn Error>> {
     let workspace_id = window_actions::active_workspace_id(state);
 
@@ -21,20 +21,29 @@ pub fn handle(
         Action::Help => state.show_help = true,
 
         Action::MoveLeft | Action::MoveDown | Action::MoveUp | Action::MoveRight => {
-            window_actions::move_focused(state, terminal_width, terminal_height, action);
+            window_actions::move_focused(state, desktop_width, desktop_height, action);
         }
 
         Action::ResizeLeft | Action::ResizeDown | Action::ResizeUp | Action::ResizeRight => {
-            window_actions::resize_focused(state, terminal_width, terminal_height, action);
+            window_actions::resize_focused(state, desktop_width, desktop_height, action);
             return Ok(());
         }
 
         Action::FitLeft | Action::FitDown | Action::FitUp | Action::FitRight => {
-            window_actions::fit_focused(state, terminal_width, terminal_height, action);
+            window_actions::fit_focused(state, desktop_width, desktop_height, action);
         }
 
         Action::FocusNext => {
             state.window_manager.focus_next(workspace_id);
+        }
+
+        Action::ToggleMode => {
+            state.terminal_input_mode = !state.terminal_input_mode;
+            state.desktop.status.message = if state.terminal_input_mode {
+                "Terminal input mode".into()
+            } else {
+                "Desktop mode".into()
+            };
         }
 
         Action::CloseWindow => {
@@ -63,8 +72,7 @@ pub fn handle(
                 .filter(|window| window.workspace_id == workspace_id)
                 .count();
 
-            let geometry =
-                Geometry::cascade(count, terminal_width, terminal_height.saturating_sub(1));
+            let geometry = Geometry::cascade(count, desktop_width, desktop_height);
 
             let id = state.window_manager.create(
                 format!("Terminal {}", count + 1),

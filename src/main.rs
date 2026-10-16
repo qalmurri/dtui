@@ -1,6 +1,6 @@
 use std::{
     error::Error,
-    io::{self, Write},
+    io::{self, IsTerminal, Write},
 };
 
 use crossterm::{
@@ -38,6 +38,10 @@ impl Drop for TerminalGuard {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
+        return Err("tuicli harus dijalankan dari terminal interaktif (TTY), bukan melalui pipe atau redirect".into());
+    }
+
     let config = config::load_or_create()?;
     tuicli::presentation::controller::keybindings::validate(&config.keybindings)?;
 

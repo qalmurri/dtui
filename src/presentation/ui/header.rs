@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Alignment, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::Paragraph,
@@ -34,14 +34,22 @@ pub(super) fn render(
             Style::default().fg(Color::Gray),
         ));
     }
-    frame.render_widget(Paragraph::new(Line::from(status_spans)), mode_status_area);
-
     let time = system_time_label(&config.desktop.time_format);
+    let time_width = time
+        .chars()
+        .count()
+        .min(usize::from(mode_status_area.width)) as u16;
+    let columns = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(time_width)])
+        .split(mode_status_area);
+
+    frame.render_widget(Paragraph::new(Line::from(status_spans)), columns[0]);
     frame.render_widget(
         Paragraph::new(time)
             .alignment(Alignment::Right)
             .style(Style::default().fg(Color::Gray)),
-        mode_status_area,
+        columns[1],
     );
 
     let mut spans = Vec::new();

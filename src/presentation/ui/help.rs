@@ -49,7 +49,10 @@ pub(super) fn render(frame: &mut Frame<'_>, area: Rect, config: &Config) {
         shortcut(&bindings.workspace_rename, "Rename workspace"),
         shortcut(&bindings.workspace_delete, "Delete workspace"),
         Line::raw(""),
-        shortcut("F2", "Toggle terminal input / desktop shortcuts"),
+        shortcut(
+            &bindings.toggle_mode,
+            "Toggle terminal input / desktop shortcuts",
+        ),
         Line::raw(""),
         Line::styled(
             "Press any key to return",

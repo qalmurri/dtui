@@ -11,7 +11,7 @@ use super::AppState;
 pub fn restore_or_initialize(
     state: &mut AppState,
     saved_session: Option<SessionState>,
-    terminal_width: u16,
+    desktop_width: u16,
     desktop_height: u16,
 ) -> Result<(), Box<dyn Error>> {
     let restored = saved_session.is_some_and(|session| restore(state, session));
@@ -41,7 +41,7 @@ pub fn restore_or_initialize(
             .map(|workspace| workspace.id)
             .unwrap_or(WorkspaceId(0));
 
-        let geometry = Geometry::cascade(0, terminal_width, desktop_height);
+        let geometry = Geometry::cascade(0, desktop_width, desktop_height);
         let window_id = state
             .window_manager
             .create("Terminal", geometry, workspace_id);

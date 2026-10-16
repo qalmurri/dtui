@@ -8,6 +8,14 @@ use crate::application::{AppState, settings::Config};
 
 use super::{desktop, header, help};
 
+const MODE_STATUS_ROW_HEIGHT: u16 = 1;
+const WORKSPACE_ROW_HEIGHT: u16 = 1;
+pub const HEADER_ROWS: u16 = MODE_STATUS_ROW_HEIGHT + WORKSPACE_ROW_HEIGHT;
+
+pub fn desktop_size(width: u16, terminal_height: u16) -> (u16, u16) {
+    (width, terminal_height.saturating_sub(HEADER_ROWS))
+}
+
 pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
     let area = frame.area();
 
@@ -19,8 +27,8 @@ pub fn render(frame: &mut Frame<'_>, state: &AppState, config: &Config) {
     let sections = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
+            Constraint::Length(MODE_STATUS_ROW_HEIGHT),
+            Constraint::Length(WORKSPACE_ROW_HEIGHT),
             Constraint::Min(1),
         ])
         .split(area);

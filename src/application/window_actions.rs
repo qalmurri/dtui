@@ -18,8 +18,8 @@ pub(super) fn active_workspace_id(state: &AppState) -> WorkspaceId {
 
 pub(super) fn move_focused(
     state: &mut AppState,
-    terminal_width: u16,
-    terminal_height: u16,
+    area_width: u16,
+    area_height: u16,
     action: Action,
 ) {
     let (dx, dy) = match action {
@@ -31,19 +31,15 @@ pub(super) fn move_focused(
     };
 
     let workspace_id = active_workspace_id(state);
-    state.window_manager.move_focused(
-        dx,
-        dy,
-        terminal_width,
-        terminal_height.saturating_sub(1),
-        workspace_id,
-    );
+    state
+        .window_manager
+        .move_focused(dx, dy, area_width, area_height, workspace_id);
 }
 
 pub(super) fn resize_focused(
     state: &mut AppState,
-    terminal_width: u16,
-    terminal_height: u16,
+    area_width: u16,
+    area_height: u16,
     action: Action,
 ) {
     let delta = match action {
@@ -54,22 +50,17 @@ pub(super) fn resize_focused(
         _ => return,
     };
 
-    let desktop_height = terminal_height.saturating_sub(1);
     let workspace_id = active_workspace_id(state);
 
     crate::domain::window_manager::resize::apply(
         &mut state.window_manager,
         delta,
-        terminal_width,
-        desktop_height,
+        area_width,
+        area_height,
         workspace_id,
     );
 
-    let windows = state.window_manager.windows.clone();
-    if let Err(error) = state
-        .terminals
-        .resize_all(&windows, terminal_width, desktop_height)
-    {
+    if let Err(error) = resize_focused_terminal(state, area_width, area_height) {
         state.desktop.status.message =
             format!("Geometri berubah, tetapi resize terminal gagal: {error}");
     } else {
@@ -77,12 +68,7 @@ pub(super) fn resize_focused(
     }
 }
 
-pub(super) fn fit_focused(
-    state: &mut AppState,
-    terminal_width: u16,
-    terminal_height: u16,
-    action: Action,
-) {
+pub(super) fn fit_focused(state: &mut AppState, area_width: u16, area_height: u16, action: Action) {
     let direction = match action {
         Action::FitLeft => SnapDirection::Left,
         Action::FitDown => SnapDirection::Down,
@@ -91,21 +77,33 @@ pub(super) fn fit_focused(
         _ => return,
     };
 
-    let desktop_height = terminal_height.saturating_sub(1);
     let workspace_id = active_workspace_id(state);
 
     state
         .window_manager
-        .snap_focused(direction, terminal_width, desktop_height, workspace_id);
+        .snap_focused(direction, area_width, area_height, workspace_id);
 
-    let windows = state.window_manager.windows.clone();
-    if let Err(error) = state
-        .terminals
-        .resize_all(&windows, terminal_width, desktop_height)
-    {
+    if let Err(error) = resize_focused_terminal(state, area_width, area_height) {
         state.desktop.status.message =
             format!("Window berubah, tetapi resize terminal gagal: {error}");
     } else {
         state.desktop.status.message = "Window di-snap sesuai arah".into();
     }
+}
+
+fn resize_focused_terminal(
+    state: &mut AppState,
+    area_width: u16,
+    area_height: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(window_id) = state.window_manager.focus.window_id else {
+        return Ok(());
+    };
+    let Some(window) = state.window_manager.get(window_id) else {
+        return Ok(());
+    };
+
+    state
+        .terminals
+        .resize_window(window_id, window.geometry.fit(area_width, area_height))
 }

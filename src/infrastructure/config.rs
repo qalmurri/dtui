@@ -12,8 +12,6 @@ pub fn config_dir() -> Result<PathBuf, Box<dyn Error>> {
     })?;
 
     let path = dirs.config_dir().to_path_buf();
-    eprintln!("tuicli config directory: {}", path.display());
-
     Ok(path)
 }
 

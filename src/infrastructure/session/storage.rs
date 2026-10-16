@@ -11,11 +11,11 @@ use super::{SessionState, validation};
 pub fn load_default() -> Result<Option<SessionState>, Box<dyn Error>> {
     let path = default_path()?;
 
-    if !path.exists() {
-        return Ok(None);
+    if path.exists() {
+        return load_from_path(&path).map(Some);
     }
 
-    load_from_path(&path).map(Some)
+    Ok(None)
 }
 
 pub fn save_default(session: &SessionState) -> Result<(), Box<dyn Error>> {
@@ -24,9 +24,13 @@ pub fn save_default(session: &SessionState) -> Result<(), Box<dyn Error>> {
 
 fn default_path() -> Result<PathBuf, Box<dyn Error>> {
     let dirs = ProjectDirs::from("com", "qalmurri", "tuicli")
-        .ok_or("Tidak dapat menentukan direktori konfigurasi")?;
+        .ok_or("Tidak dapat menentukan direktori state")?;
 
-    Ok(dirs.config_dir().join("session.toml"))
+    let state_dir = dirs
+        .state_dir()
+        .ok_or("Direktori state XDG tidak tersedia pada platform ini")?;
+
+    Ok(state_dir.join("session.toml"))
 }
 
 pub(super) fn load_from_path(path: &Path) -> Result<SessionState, Box<dyn Error>> {
