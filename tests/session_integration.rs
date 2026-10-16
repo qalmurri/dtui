@@ -5,9 +5,12 @@ use std::{
 };
 
 use tuicli::{
-    desktop::workspace::Workspace,
-    session::{SessionState, SessionWindow},
-    window_manager::Geometry,
+    domain::{
+        desktop::workspace::Workspace,
+        session::{SessionState, SessionWindow},
+        window_manager::Geometry,
+    },
+    infrastructure::session as session_storage,
 };
 
 static TEST_ID: AtomicU64 = AtomicU64::new(0);
@@ -61,9 +64,9 @@ fn session_round_trip_preserves_all_state() {
     let path = temporary_session_path();
     let expected = sample_session();
 
-    expected.save_to_file(&path).expect("save session");
+    session_storage::save_to_file(&expected, &path).expect("save session");
 
-    let actual = SessionState::load_from_file(&path).expect("load session");
+    let actual = session_storage::load_from_file(&path).expect("load session");
 
     assert_eq!(actual, expected);
 
@@ -76,10 +79,10 @@ fn session_load_rejects_unknown_active_workspace() {
     let mut session = sample_session();
 
     session.active_workspace_id = 99;
-    session.save_to_file(&path).expect("save invalid session");
+    session_storage::save_to_file(&session, &path).expect("save invalid session");
 
     assert!(
-        SessionState::load_from_file(&path).is_err(),
+        session_storage::load_from_file(&path).is_err(),
         "unknown active workspace should be rejected"
     );
 
@@ -92,10 +95,10 @@ fn session_load_rejects_focus_in_another_workspace() {
     let mut session = sample_session();
 
     session.focused_window_id = Some(7);
-    session.save_to_file(&path).expect("save invalid session");
+    session_storage::save_to_file(&session, &path).expect("save invalid session");
 
     assert!(
-        SessionState::load_from_file(&path).is_err(),
+        session_storage::load_from_file(&path).is_err(),
         "focus outside active workspace should be rejected"
     );
 

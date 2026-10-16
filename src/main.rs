@@ -13,7 +13,11 @@ use crossterm::{
     },
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
-use tuicli::{app, config, scripting, session};
+use tuicli::{
+    application::ports::SessionRepository,
+    infrastructure::{config, pty::TerminalManager, scripting, session},
+    presentation,
+};
 
 struct TerminalGuard {
     keyboard_enhancement: bool,
@@ -35,6 +39,7 @@ impl Drop for TerminalGuard {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let config = config::load_or_create()?;
+    tuicli::presentation::controller::keybindings::validate(&config.keybindings)?;
 
     if config.lua.enabled
         && let Err(error) = scripting::lua_runtime::run_init(&config)
@@ -46,7 +51,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("TUICLI Lua warning: {error}");
     }
 
-    let (saved_session, persist_session) = match session::SessionState::load() {
+    let session_repository = session::FileSessionRepository;
+    let (saved_session, persist_session) = match session_repository.load() {
         Ok(session) => (session, true),
         Err(error) => {
             eprintln!("TUICLI: sesi tidak dapat dipulihkan: {error}");
@@ -77,7 +83,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     terminal.clear()?;
 
-    app::run(&mut terminal, &config, saved_session, persist_session)?;
+    presentation::runtime::run(
+        &mut terminal,
+        &config,
+        saved_session,
+        persist_session,
+        Box::new(TerminalManager::default()),
+        Box::new(session_repository),
+    )?;
 
     Ok(())
 }

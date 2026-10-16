@@ -1,4 +1,4 @@
-use tuicli::desktop::workspace::{Workspace, WorkspaceId};
+use tuicli::domain::desktop::workspace::{Workspace, WorkspaceId};
 
 #[test]
 fn workspace_constructor_preserves_id_and_name() {

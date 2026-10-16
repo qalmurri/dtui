@@ -19,6 +19,18 @@ Built with Rust, tuicli focuses on stability, efficiency, and simplicity.
 
 > tuicli is under active development. Features, configuration, and behavior may change.
 
+## Configuration
+
+The main configuration file is `~/.config/tuicli/config.toml`. The status line shows the system time on its right side. Set `desktop.time_format` to a [`strftime`](https://man7.org/linux/man-pages/man3/strftime.3.html) format to choose how it is displayed:
+
+```toml
+[desktop]
+title = "TUICLI"
+time_format = "%H:%M:%S"
+```
+
+The format uses the system's local timezone. If `time_format` is empty or omitted, tuicli displays the raw Unix timestamp in seconds. Existing configuration files without this setting continue to work and use the timestamp fallback.
+
 ## Installation
 
 ### Debian / Ubuntu (APT)

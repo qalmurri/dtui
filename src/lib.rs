@@ -1,16 +1,12 @@
-use ratatui::{Terminal, backend::CrosstermBackend};
-use std::io::Stdout;
+pub mod application;
+pub mod domain;
+pub mod infrastructure;
+pub mod presentation;
 
-pub mod app;
-pub mod applications;
-pub mod config;
-pub mod controller;
-pub mod core;
-pub mod desktop;
-pub mod keybindings;
-pub mod scripting;
-pub mod session;
-pub mod ui;
-pub mod window_manager;
-
-pub type Tui = Terminal<CrosstermBackend<Stdout>>;
+// Compatibility re-exports for common types and modules from the old layout.
+pub use application as app;
+pub use domain::{desktop, session, window_manager};
+pub use infrastructure::{applications, config, scripting};
+pub use presentation::Tui;
+pub use presentation::controller::keybindings;
+pub use presentation::{controller, terminal as core, ui};
