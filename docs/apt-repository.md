@@ -21,7 +21,7 @@ Keep the private key and passphrase out of the repository. The workflow publishe
 
 ## Publishing a release
 
-Push a version tag such as `v0.1.2`. The release workflow builds the binary and `.deb`; the APT workflow builds and signs repository metadata, then deploys it to GitHub Pages. The first Pages deployment requires the one-time setup above.
+Push a version tag such as `v0.1.3`. The release workflow builds the binary and `.deb`; the APT workflow builds and signs repository metadata, then deploys it to GitHub Pages. The first Pages deployment requires the one-time setup above.
 
 The current repository publishes `amd64` packages to the `stable` distribution. Packages are built on Ubuntu 22.04 and require glibc 2.35 or newer, so the documented minimum is Debian 12 or Ubuntu 22.04. APT clients use:
 

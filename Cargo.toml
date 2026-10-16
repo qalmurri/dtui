@@ -1,6 +1,6 @@
 [package]
 name = "tuicli"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 authors = ["qalmurri <blog.qalmurri@gmail.com>"]
 description = "A lightweight Rust-based TUI desktop environment for Linux CLI systems. Provides terminal window management, workspaces, and interactive shell sessions without requiring Xorg or Wayland"
