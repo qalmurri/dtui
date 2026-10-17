@@ -312,7 +312,7 @@ impl PtySession {
     }
 }
 
-fn resolve_shell() -> String {
+pub fn resolve_shell() -> String {
     let candidate = env::var("SHELL")
         .ok()
         .filter(|shell| !shell.trim().is_empty());

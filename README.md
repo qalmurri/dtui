@@ -20,6 +20,12 @@ Built with Rust, tuicli focuses on stability, efficiency, and simplicity.
 
 > tuicli is under active development. Features, configuration, and behavior may change.
 
+## Command-line options
+
+Run `tuicli --help` to list available options. `--version` prints the installed version. `--check` checks the current TTY, `TERM`, shell, configuration, keybindings, and saved session without creating or changing files. Keyboard enhancement support is probed when the interactive app starts; basic key input remains available as a fallback.
+
+Use `--no-restore` to start without loading the saved layout for one run. The current layout is still saved when tuicli exits normally. Use `--reset-session` to remove the saved layout; tuicli asks for confirmation first. This does not remove `config.toml`.
+
 ## Configuration
 
 The main configuration file is `~/.config/tuicli/config.toml`. The status line shows the average CPU frequency in GHz (for example, `3.20 GHz`) to the left of the system time. tuicli prefers hardware-reported data from Linux CPUFreq, then falls back to the current scaling frequency and `/proc/cpuinfo`; unsupported systems show `-- GHz`. Some systems expose only the frequency requested by the scaling driver, which may differ from the measured hardware frequency. Set `desktop.time_format` to a [`strftime`](https://man7.org/linux/man-pages/man3/strftime.3.html) format to choose how the time is displayed:

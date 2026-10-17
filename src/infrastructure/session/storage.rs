@@ -11,7 +11,7 @@ use super::{SessionState, validation};
 pub fn load_default() -> Result<Option<SessionState>, Box<dyn Error>> {
     let path = default_path()?;
 
-    if path.exists() {
+    if path.try_exists()? {
         return load_from_path(&path).map(Some);
     }
 
@@ -22,7 +22,7 @@ pub fn save_default(session: &SessionState) -> Result<(), Box<dyn Error>> {
     save_to_path(session, &default_path()?)
 }
 
-fn default_path() -> Result<PathBuf, Box<dyn Error>> {
+pub(super) fn default_path() -> Result<PathBuf, Box<dyn Error>> {
     let dirs = ProjectDirs::from("com", "qalmurri", "tuicli")
         .ok_or("Tidak dapat menentukan direktori state")?;
 
