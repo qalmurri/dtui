@@ -26,3 +26,12 @@ pub fn install() -> std::io::Result<()> {
 pub fn shutdown_requested() -> bool {
     SHUTDOWN_REQUESTED.load(Ordering::Relaxed)
 }
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SystemShutdown;
+
+impl crate::application::ports::ShutdownStatus for SystemShutdown {
+    fn is_requested(&self) -> bool {
+        shutdown_requested()
+    }
+}

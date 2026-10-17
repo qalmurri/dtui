@@ -3,7 +3,7 @@ use std::{
     env,
     io::{self, Read, Write},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, TryRecvError, TrySendError},
     },
@@ -32,6 +32,7 @@ pub struct PtySession {
     output: Receiver<Vec<u8>>,
     reader_thread: Option<JoinHandle<()>>,
     reader_stop: Arc<AtomicBool>,
+    reader_error: Arc<Mutex<Option<String>>>,
     output_closed: bool,
     exited: bool,
 }
@@ -73,10 +74,17 @@ impl PtySession {
         let (sender, output) = mpsc::sync_channel::<Vec<u8>>(OUTPUT_QUEUE_CHUNKS);
         let reader_stop = Arc::new(AtomicBool::new(false));
         let stop_signal = Arc::clone(&reader_stop);
+        let reader_error = Arc::new(Mutex::new(None));
+        let thread_error = Arc::clone(&reader_error);
 
         let reader_thread = thread::spawn(move || {
             let mut buffer = [0_u8; 4096];
             let mut pending = None;
+            let report_error = |message: String| {
+                if let Ok(mut error) = thread_error.lock() {
+                    *error = Some(message);
+                }
+            };
 
             loop {
                 if stop_signal.load(Ordering::Acquire) {
@@ -118,10 +126,13 @@ impl PtySession {
                             continue;
                         }
 
+                        report_error(format!("poll PTY gagal: {error}"));
+
                         break;
                     }
 
                     if poll_fd.revents & libc::POLLNVAL != 0 {
+                        report_error("descriptor PTY tidak valid".into());
                         break;
                     }
 
@@ -134,7 +145,11 @@ impl PtySession {
                     Ok(0) => break,
                     Ok(length) => pending = Some(buffer[..length].to_vec()),
                     Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-                    Err(_) => break,
+                    Err(error) if error.raw_os_error() == Some(libc::EIO) => break,
+                    Err(error) => {
+                        report_error(format!("baca PTY gagal: {error}"));
+                        break;
+                    }
                 }
             }
         });
@@ -147,6 +162,7 @@ impl PtySession {
             output,
             reader_thread: Some(reader_thread),
             reader_stop,
+            reader_error,
             output_closed: false,
             exited: false,
         })
@@ -168,6 +184,10 @@ impl PtySession {
             }
         }
         changed
+    }
+
+    fn take_reader_error(&self) -> Option<String> {
+        self.reader_error.lock().ok()?.take()
     }
 
     fn poll_output(&mut self) -> bool {
@@ -408,6 +428,15 @@ impl TerminalManager {
         changed
     }
 
+    pub fn take_errors(&mut self) -> Vec<(u64, String)> {
+        self.sessions
+            .iter()
+            .filter_map(|(&window_id, session)| {
+                session.take_reader_error().map(|error| (window_id, error))
+            })
+            .collect()
+    }
+
     pub fn screen(&self, window_id: u64) -> Option<&Screen> {
         self.sessions
             .get(&window_id)
@@ -509,6 +538,10 @@ impl TerminalBackend for TerminalManager {
 
     fn poll(&mut self) -> bool {
         TerminalManager::poll(self)
+    }
+
+    fn take_errors(&mut self) -> Vec<(u64, String)> {
+        TerminalManager::take_errors(self)
     }
 
     fn screen(&self, window_id: u64) -> Option<&dyn TerminalScreen> {

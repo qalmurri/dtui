@@ -1,6 +1,39 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::Path,
+    sync::mpsc::{self, Receiver},
+    thread,
+    time::Duration,
+};
 
 const CPUFREQ_ROOT: &str = "/sys/devices/system/cpu/cpufreq";
+
+/// Sample CPU frequency away from the UI loop so slow sysfs drivers cannot
+/// delay terminal input or rendering.
+pub struct CpuFrequencySampler {
+    receiver: Receiver<Option<f64>>,
+}
+
+impl crate::application::ports::CpuFrequencyUpdates for CpuFrequencySampler {
+    fn take_latest(&mut self) -> Option<Option<f64>> {
+        self.receiver.try_iter().last()
+    }
+}
+
+pub fn spawn_sampler() -> CpuFrequencySampler {
+    let (sender, receiver) = mpsc::sync_channel(1);
+
+    thread::spawn(move || {
+        loop {
+            if sender.send(average_ghz()).is_err() {
+                break;
+            }
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    CpuFrequencySampler { receiver }
+}
 
 /// Return the logical-CPU-weighted current frequency in GHz when Linux exposes it.
 pub fn average_ghz() -> Option<f64> {

@@ -6,7 +6,7 @@ use crate::{
     application::settings::Config,
     application::{
         self, AppState,
-        ports::{SessionRepository, TerminalBackend},
+        ports::{CpuFrequencyUpdates, SessionRepository, ShutdownStatus, TerminalBackend},
     },
     domain::session::SessionState,
     presentation::{
@@ -16,16 +16,22 @@ use crate::{
     },
 };
 
+pub struct RuntimeServices {
+    pub terminal_backend: Box<dyn TerminalBackend>,
+    pub session_repository: Box<dyn SessionRepository>,
+    pub cpu_frequency: Option<Box<dyn CpuFrequencyUpdates>>,
+    pub shutdown: Box<dyn ShutdownStatus>,
+}
+
 pub fn run(
     terminal: &mut Tui,
     config: &Config,
     keymap: &controller::keybindings::Keymap,
     saved_session: Option<SessionState>,
     persist_session: bool,
-    terminal_backend: Box<dyn TerminalBackend>,
-    session_repository: Box<dyn SessionRepository>,
+    mut services: RuntimeServices,
 ) -> Result<(), Box<dyn Error>> {
-    let mut state = AppState::new(terminal_backend);
+    let mut state = AppState::new(services.terminal_backend);
 
     let terminal_size = terminal.size()?;
     let (desktop_width, desktop_height) =
@@ -45,11 +51,24 @@ pub fn run(
     let poll_interval = Duration::from_millis(config.runtime.poll_interval_ms);
     let mut redraw = true;
     let mut last_clock_second = unix_second();
-    if config.desktop.show_cpu_frequency {
-        state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
-    }
-    while state.running && !crate::infrastructure::signals::shutdown_requested() {
+    while state.running && !services.shutdown.is_requested() {
         redraw |= state.terminals.poll();
+
+        if let Some(sampler) = services.cpu_frequency.as_mut()
+            && let Some(frequency) = sampler.take_latest()
+            && state.cpu_frequency_ghz != frequency
+        {
+            state.cpu_frequency_ghz = frequency;
+            redraw = true;
+        }
+
+        for (window_id, error) in state.terminals.take_errors() {
+            state.terminals.remove(window_id);
+            state.window_manager.close(window_id);
+            state.desktop.status.message =
+                format!("Sesi terminal berhenti karena gagal membaca PTY: {error}");
+            redraw = true;
+        }
 
         let exited = state.terminals.exited_window_ids();
         for window_id in exited.iter().copied() {
@@ -61,9 +80,6 @@ pub fn run(
         let clock_second = unix_second();
         if clock_second != last_clock_second {
             last_clock_second = clock_second;
-            if config.desktop.show_cpu_frequency {
-                state.cpu_frequency_ghz = crate::infrastructure::cpu_frequency::average_ghz();
-            }
             redraw = true;
         }
 
@@ -178,7 +194,7 @@ pub fn run(
     state.terminals.close_processes();
     if persist_session {
         let session = application::to_session_state(&state);
-        session_repository.save(&session)?;
+        services.session_repository.save(&session)?;
     }
 
     Ok(())

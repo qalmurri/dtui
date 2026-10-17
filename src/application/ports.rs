@@ -39,6 +39,8 @@ pub trait TerminalBackend {
     fn remove(&mut self, window_id: u64);
     /// Process pending PTY output and report whether any visible screen changed.
     fn poll(&mut self) -> bool;
+    /// Return PTY reader failures that should close their corresponding windows.
+    fn take_errors(&mut self) -> Vec<(u64, String)>;
     fn screen(&self, window_id: u64) -> Option<&dyn TerminalScreen>;
     fn is_exited(&self, window_id: u64) -> bool;
     fn exited_window_ids(&self) -> Vec<u64>;
@@ -58,4 +60,14 @@ pub trait TerminalBackend {
 pub trait SessionRepository {
     fn load(&self) -> Result<Option<SessionState>, Box<dyn Error>>;
     fn save(&self, session: &SessionState) -> Result<(), Box<dyn Error>>;
+}
+
+/// Supplies the newest asynchronous CPU frequency sample, if one is ready.
+pub trait CpuFrequencyUpdates {
+    fn take_latest(&mut self) -> Option<Option<f64>>;
+}
+
+/// Lets the runtime stop without depending on a concrete signal handler.
+pub trait ShutdownStatus {
+    fn is_requested(&self) -> bool;
 }

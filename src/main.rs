@@ -88,14 +88,24 @@ fn main() -> Result<(), Box<dyn Error>> {
     terminal.clear()?;
     tuicli::infrastructure::signals::install()?;
 
+    let cpu_frequency = config.desktop.show_cpu_frequency.then(|| {
+        Box::new(tuicli::infrastructure::cpu_frequency::spawn_sampler())
+            as Box<dyn tuicli::application::ports::CpuFrequencyUpdates>
+    });
+    let shutdown = tuicli::infrastructure::signals::SystemShutdown;
+
     presentation::runtime::run(
         &mut terminal,
         &config,
         &keymap,
         saved_session,
         persist_session,
-        Box::new(TerminalManager::default()),
-        Box::new(session_repository),
+        presentation::runtime::RuntimeServices {
+            terminal_backend: Box::new(TerminalManager::default()),
+            session_repository: Box::new(session_repository),
+            cpu_frequency,
+            shutdown: Box::new(shutdown),
+        },
     )?;
 
     Ok(())
